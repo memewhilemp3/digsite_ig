@@ -51,7 +51,27 @@ No third-party apps or Instagram API credentials needed!
 - Paste the bundled script (`instagram_scraper_console.js`).
 - A floating terminal HUD appears, smoothly scrolling and harvesting your saved items, captions, creators, and media previews, then automatically downloads `my_instagram_digsite.json`.
 
-### 5. ⇄ Cross-Digsite Comparator & Archiving
+### 5. 🪐 Simultaneous Dual Digsite (Twin View) Engine
+- **Simultaneous Side-by-Side Network**: Visualize both digsite network graphs on the canvas at the same time (e.g. Primary: 288 items on the left, Guest: 4,440 items on the right).
+- **Resonance Meridian**: A central celestial dividing line with live vocabulary resonance metrics.
+- **Cross-Digsite Bridge Cables (`✦`)**: Golden arched links spanning between matching creators and shared top keywords across both collections.
+- **Collision Cosmos Mode**: Switch from Side-by-Side split into a unified blended cosmos where shared thematic clusters attract and gravitate toward each other.
+
+### 6. 📌 Node Pinning & Persistent Inspector Card
+- **Lock in Space**: Single-click any node to pin it into place (`fx`/`fy` locked in D3 physics).
+- **Connection Illumination**: All links and neighbor connections attached to the pinned node illuminate in brilliant gold (`#ffeaa7`).
+- **Docked HUD**: Persistent inspector docked at bottom-left displaying creator, thumbnail, strata altitude, date saved, caption summary, and direct links.
+- **Background Open**: Double-click any node (or the card) to open the Instagram post/reel in a background tab without losing focus.
+
+### 7. 🏔️ Zero-Noise Thumbnail & Label Density Modes
+- Toggle preview density via `[🏔️ Previews: Summits]`:
+  - **Summits (Default)**: Previews appear only for high cluster peaks (`elevation > 0.82`), keeping the landscape crisp and eliminating overwhelming walls of circular images.
+  - **On Hover/Pin**: Thumbnails only reveal when a node is actively hovered or pinned.
+  - **Pure ASCII**: Pure typographic terminal mode with zero image overlays.
+  - **All Nodes**: Displays thumbnails on every node when zoomed in.
+- **Collision-Free Label Culling**: Stated creator tags strictly cull normal nodes and prioritize non-overlapping cluster summits and pinned hubs, completely eliminating label clutter.
+
+### 8. ⇄ Cross-Digsite Archiving & Export
 - **💾 Export Archive**: Download a lightweight `.digsite.json` snapshot containing all metadata, cluster configurations, and dates.
 - **⇄ Compare Digsites**: Drop a friend's `.json` or `.digsite.json` alongside your own to calculate:
   - **Vocabulary Resonance**: Jaccard index measuring creative overlap and shared concepts.

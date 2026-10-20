@@ -1228,6 +1228,8 @@
           <button class="ctrl-btn" onclick="zoomNetwork(0.65)">➖ Zoom Out</button>
           <button class="ctrl-btn" style="border-color:#ffeaa7; color:#ffeaa7;" onclick="fitNetworkToView(450)">⛶ Fit Universe</button>
           <button class="ctrl-btn" onclick="resetNetworkZoom()">⟲ 1:1 View</button>
+          <button class="ctrl-btn" id="btnThumbMode" onclick="cycleThumbnailMode()" title="Toggle thumbnail preview density">🏔️ Previews: Summits</button>
+          <button class="ctrl-btn" id="btnToggleTwinView" style="display:none; border-color:#d29922; color:#ffeaa7;" onclick="toggleTwinDigsiteView()">⇄ Twin Digsites (Side-by-Side)</button>
           <button class="ctrl-btn" id="btnToggleTiledInspector" onclick="toggleTiledInspector()">🗂️ Tiled Info</button>
           <button class="ctrl-btn" id="btnToggleFullscreen" style="border-color:#58a6ff; color:#58a6ff;" onclick="toggleNetworkFullscreen()">⛶ Fullscreen</button>
         </div>
@@ -1247,6 +1249,44 @@
       <!-- Canvas Container -->
       <div class="network-canvas-wrap" id="canvasWrap">
         <canvas id="networkCanvas"></canvas>
+
+        <!-- Twin Digsites Overhead Meridian HUD -->
+        <div id="twinHeaderBar" style="display:none; position:absolute; top:12px; left:16px; right:16px; background:rgba(5,7,13,0.92); border:1px solid #d29922; border-radius:8px; padding:8px 16px; z-index:35; font-family:monospace; font-size:11px; justify-content:space-between; align-items:center; backdrop-filter:blur(8px);">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="color:#58a6ff; font-weight:bold;">🏛️ DIGSITE A: <span id="twinCountA">0</span></span>
+            <span style="color:#d29922;">✦ ───</span>
+            <span style="color:#ffeaa7; font-weight:bold;" id="twinResonanceBadge">14% RESONANCE</span>
+            <span style="color:#d29922;">─── ✦</span>
+            <span style="color:#f0883e; font-weight:bold;">🏺 DIGSITE B: <span id="twinCountB">0</span></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <button class="ctrl-btn active" id="btnTwinSplit" onclick="setTwinMode('split')">⛶ Side-by-Side</button>
+            <button class="ctrl-btn" id="btnTwinUnified" onclick="setTwinMode('unified')">🪐 Collision Cosmos</button>
+            <button class="ctrl-btn" style="border-color:#ff7b72; color:#ff7b72;" onclick="exitTwinView()">✕ Exit Twin View</button>
+          </div>
+        </div>
+
+        <!-- Docked Pinned Node Inspector Card -->
+        <div id="pinnedNodeCard" style="display:none; position:absolute; bottom:18px; left:18px; width:310px; background:rgba(5,7,13,0.95); border:1px solid #ffeaa7; border-radius:10px; padding:12px 14px; color:#e2e8f0; font-family:monospace; font-size:12px; box-shadow:0 8px 32px rgba(0,0,0,0.85); z-index:40; backdrop-filter:blur(10px);">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed #334155; padding-bottom:6px; margin-bottom:8px;">
+            <span style="color:#ffeaa7; font-weight:bold; font-size:11px;">📌 PINNED NODE [LOCKED]</span>
+            <button onclick="unpinNode()" style="background:transparent; border:none; color:#8b949e; cursor:pointer; font-size:14px; padding:0 4px;" title="Unpin (Esc)">✕</button>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start;">
+            <img id="pinnedImg" src="" style="width:68px; height:68px; border-radius:6px; object-fit:cover; border:1px solid #ffeaa7; flex-shrink:0;" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' fill=\'%230e131f\'><text x=\'50%25\' y=\'50%25\' fill=\'%238b949e\' font-family=\'monospace\' font-size=\'12\' text-anchor=\'middle\' dy=\'.3em\'>[No Img]</text></svg>';">
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:bold; color:#79c0ff; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="pinnedCreator">@username</div>
+              <div style="font-size:10px; color:#ffeaa7; margin-top:2px;" id="pinnedMeta">Reel · ▲850m</div>
+              <div style="font-size:10px; color:#8b949e; margin-top:2px;" id="pinnedDate">Saved: Oct 2026</div>
+            </div>
+          </div>
+          <div style="font-size:11px; color:#cbd5e1; margin-top:8px; max-height:54px; overflow-y:auto; line-height:1.4;" id="pinnedCaption"></div>
+          <div style="display:flex; gap:6px; margin-top:10px;">
+            <button id="pinnedProximityBtn" class="export-btn" style="flex:1; padding:4px 8px; font-size:11px;" onclick="if(pinnedNode) findThematicNeighbors(pinnedNode.id)">🔍 Proximity</button>
+            <a id="pinnedInstaLink" href="#" target="_blank" rel="noopener noreferrer" class="export-btn" style="padding:4px 8px; font-size:11px; text-decoration:none; background:#21262d;">↗ Instagram</a>
+            <button class="export-btn" style="padding:4px 8px; font-size:11px; background:transparent; border-color:#64748b;" onclick="unpinNode()">✕ Unpin</button>
+          </div>
+        </div>
 
         <!-- ASCII Topographic Legend -->
         <div class="topo-legend">
@@ -1487,11 +1527,113 @@
   let leafletMap = null;
   let mapMarkers = [];
 
+  // Pinned Node & Visual Noise Controls:
+  let pinnedNode = null;
+  let thumbnailMode = 'summits'; // 'summits' | 'hover' | 'pure_ascii' | 'all'
+
+  // Simultaneous Dual Digsite (Twin View) Engine:
+  let isTwinViewActive = false;
+  let twinViewMode = 'split'; // 'split' | 'unified'
+  let secondaryEnrichedItems = [];
+  let secondaryClusters = [];
+  let secondaryNetworkNodes = [];
+  let secondaryNetworkLinks = [];
+  let twinInterLinks = [];
+  let twinResonancePercent = 0;
+
   const CLUSTER_COLORS = [
     '#e1306c', '#388bfd', '#2ea043', '#f0883e', '#a371f7', 
     '#d29922', '#56d364', '#79c0ff', '#ff7b72', '#ec6547',
     '#ff6b81', '#2ed573', '#1e90ff', '#ffa502', '#3742fa', '#eccc68'
   ];
+
+  const SECONDARY_CLUSTER_COLORS = [
+    '#f0883e', '#d29922', '#ec6547', '#ff7b72', '#a371f7',
+    '#eccc68', '#ffa502', '#ff6b81', '#388bfd', '#2ea043'
+  ];
+
+  function cycleThumbnailMode() {
+    const modes = ['summits', 'hover', 'pure_ascii', 'all'];
+    const labels = {
+      summits: '🏔️ Previews: Summits',
+      hover: '🔍 Previews: Hover/Pin',
+      pure_ascii: '▦ Previews: Pure ASCII',
+      all: '🌐 Previews: All Nodes'
+    };
+    const nextIdx = (modes.indexOf(thumbnailMode) + 1) % modes.length;
+    thumbnailMode = modes[nextIdx];
+    const btn = document.getElementById('btnThumbMode');
+    if (btn) btn.innerText = labels[thumbnailMode] || thumbnailMode;
+    showToast(`Previews: ${labels[thumbnailMode] || thumbnailMode}`);
+    requestRender();
+  }
+
+  function pinNode(node) {
+    if (!node) return;
+    if (pinnedNode && pinnedNode.id === node.id) {
+      updatePinnedCard(node);
+      return;
+    }
+    if (pinnedNode) {
+      pinnedNode.pinned = false;
+      pinnedNode.fx = null;
+      pinnedNode.fy = null;
+    }
+    pinnedNode = node;
+    node.pinned = true;
+    node.fx = node.x;
+    node.fy = node.y;
+    updatePinnedCard(node);
+    requestRender();
+    showToast(`📌 Pinned @${node.creator} [Locked in space]`);
+  }
+
+  function unpinNode() {
+    if (!pinnedNode) return;
+    pinnedNode.pinned = false;
+    pinnedNode.fx = null;
+    pinnedNode.fy = null;
+    const oldCreator = pinnedNode.creator;
+    pinnedNode = null;
+    const card = document.getElementById('pinnedNodeCard');
+    if (card) card.style.display = 'none';
+    requestRender();
+    showToast(`Unpinned @${oldCreator}`);
+  }
+
+  function updatePinnedCard(node) {
+    const card = document.getElementById('pinnedNodeCard');
+    if (!card || !node) return;
+    card.style.display = 'block';
+    const imgEl = document.getElementById('pinnedImg');
+    if (imgEl) imgEl.src = node.thumbnailUrl || '';
+    safeSetText('pinnedCreator', `@${node.creator}`);
+    const elevM = Math.round((node.elevation || 0.5) * 1000);
+    const digsiteTag = node.digsiteSource === 'secondary' ? '🏺 Digsite B · ' : (isTwinViewActive ? '🏛️ Digsite A · ' : '');
+    safeSetText('pinnedMeta', `${digsiteTag}${node.contentType || 'Post'} · ▲${elevM}m · ${node.tier ? node.tier.toUpperCase() : 'STRATA'}`);
+    safeSetText('pinnedDate', `Saved: ${node.dateFormatted || 'Undated'}`);
+    safeSetText('pinnedCaption', node.captionSummary || 'No caption text available');
+    const instaLink = document.getElementById('pinnedInstaLink');
+    if (instaLink) {
+      instaLink.href = node.url || '#';
+      instaLink.style.display = node.url ? 'inline-block' : 'none';
+    }
+  }
+
+  function shouldNodeShowThumbnail(node, k) {
+    if (thumbnailMode === 'pure_ascii') return false;
+    const isHovered = hoveredNode && hoveredNode.id === node.id;
+    const isPinned = pinnedNode && pinnedNode.id === node.id;
+    if (isHovered || isPinned) return true;
+    if (thumbnailMode === 'hover') return false;
+    if (thumbnailMode === 'summits') {
+      return (node.elevation > 0.82) && (k >= 1.25);
+    }
+    if (thumbnailMode === 'all') {
+      return k >= 1.25;
+    }
+    return false;
+  }
 
   const STOP_WORDS = new Set([
     'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'aren',
@@ -2719,7 +2861,8 @@
 
       const [virtX, virtY] = currentTransform.invert([mouseX, mouseY]);
 
-      const found = networkNodes.find(node => {
+      const allActiveNodes = isTwinViewActive ? [...networkNodes, ...secondaryNetworkNodes] : networkNodes;
+      const found = allActiveNodes.find(node => {
         const dx = node.x - virtX;
         const dy = node.y - virtY;
         const effectiveR = getNodeRenderRadius(node, currentTransform.k);
@@ -2741,8 +2884,9 @@
         } else if (currentHeightMode === 'degree') {
           heightDetail = `🔗 Degree (▲${elevMeters}m)`;
         }
-        safeSetText('tooltipCreator', `@${found.creator} (${found.contentType}) • [${found.tier.toUpperCase()} ${heightDetail}]`);
-        safeSetText('tooltipCaption', (found.captionSummary || 'No caption') + ' • 💡 Double-click to open ↗');
+        const srcPrefix = found.digsiteSource === 'secondary' ? '🏺 [DIGSITE B] ' : (isTwinViewActive ? '🏛️ [DIGSITE A] ' : '');
+        safeSetText('tooltipCreator', `${srcPrefix}@${found.creator} (${found.contentType}) • [${found.tier.toUpperCase()} ${heightDetail}]`);
+        safeSetText('tooltipCaption', (found.captionSummary || 'No caption') + ' • 💡 Click to Pin · Double-click to open ↗');
       } else {
         if (hoveredNode !== null) {
           hoveredNode = null;
@@ -2754,8 +2898,25 @@
     });
 
     canvas.addEventListener('click', (e) => {
-      if (hoveredNode) {
-        findThematicNeighbors(hoveredNode.id);
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const [virtX, virtY] = currentTransform.invert([mouseX, mouseY]);
+
+      const allActiveNodes = isTwinViewActive ? [...networkNodes, ...secondaryNetworkNodes] : networkNodes;
+      const found = allActiveNodes.find(node => {
+        const dx = node.x - virtX;
+        const dy = node.y - virtY;
+        const effectiveR = getNodeRenderRadius(node, currentTransform.k) * 1.35;
+        return (dx * dx + dy * dy) <= (effectiveR * effectiveR);
+      }) || hoveredNode;
+
+      if (found) {
+        pinNode(found);
+      } else {
+        if (pinnedNode) {
+          unpinNode();
+        }
       }
     });
 
@@ -2769,7 +2930,8 @@
       const mouseY = e.clientY - rect.top;
       const [virtX, virtY] = currentTransform.invert([mouseX, mouseY]);
 
-      const targetNode = networkNodes.find(node => {
+      const allActiveNodes = isTwinViewActive ? [...networkNodes, ...secondaryNetworkNodes] : networkNodes;
+      const targetNode = allActiveNodes.find(node => {
         const dx = node.x - virtX;
         const dy = node.y - virtY;
         const effectiveR = getNodeRenderRadius(node, currentTransform.k) * 1.35;
@@ -2800,7 +2962,13 @@
       else if (e.key === '2') setHeightMode('chrono');
       else if (e.key === '3') setHeightMode('degree');
       else if (e.key === 'r' || e.key === 'R' || e.key === 'f' || e.key === 'F') fitNetworkToView(450);
-      else if (e.key === 'Escape') clearSimilarityFilter();
+      else if (e.key === 'Escape') {
+        if (pinnedNode) {
+          unpinNode();
+        } else {
+          clearSimilarityFilter();
+        }
+      }
     });
   }
 
@@ -2814,10 +2982,10 @@
 
   function dragSubject(event) {
     const [virtX, virtY] = currentTransform.invert([event.x, event.y]);
-    return simulation.find(virtX, virtY, 35);
+    return simulation ? simulation.find(virtX, virtY, 35) : null;
   }
   function dragStarted(event) {
-    if (!event.active) simulation.alphaTarget(0.2).restart();
+    if (!event.active && simulation) simulation.alphaTarget(0.2).restart();
     event.subject.fx = event.subject.x;
     event.subject.fy = event.subject.y;
   }
@@ -2828,9 +2996,11 @@
     requestRender();
   }
   function dragEnded(event) {
-    if (!event.active) simulation.alphaTarget(0);
-    event.subject.fx = null;
-    event.subject.fy = null;
+    if (!event.active && simulation) simulation.alphaTarget(0);
+    if (!event.subject.pinned) {
+      event.subject.fx = null;
+      event.subject.fy = null;
+    }
     calculateIntersections();
     requestRender();
   }
@@ -2843,13 +3013,14 @@
   }
 
   function fitNetworkToView(duration = 500) {
-    if (!networkNodes || networkNodes.length === 0 || !canvas) return;
+    const allActiveNodes = isTwinViewActive ? [...networkNodes, ...secondaryNetworkNodes] : networkNodes;
+    if (!allActiveNodes || allActiveNodes.length === 0 || !canvas) return;
     const wrap = document.getElementById('canvasWrap');
     const width = wrap.clientWidth || 900;
     const height = wrap.clientHeight || 620;
 
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    networkNodes.forEach(n => {
+    allActiveNodes.forEach(n => {
       if (typeof n.x === 'number' && isFinite(n.x)) {
         if (n.x < minX) minX = n.x;
         if (n.x > maxX) maxX = n.x;
@@ -2867,7 +3038,6 @@
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
 
-    // Generous framing with 35% padding for halos and badges
     const padFactor = 1.35;
     const scaleX = width / (graphW * padFactor);
     const scaleY = height / (graphH * padFactor);
@@ -2887,7 +3057,7 @@
   }
 
   function getNodeRenderRadius(node, k) {
-    const showThumb = k >= 1.25;
+    const showThumb = shouldNodeShowThumbnail(node, k);
     return node.baseRadius * (showThumb ? 1.3 : 1.0);
   }
 
@@ -2943,7 +3113,7 @@
   // PURE ASCII DEPTH ENGINE (ZERO CANVAS GLOW, ZERO BLURRY ARCS)
   // Topographic depth is rendered exclusively via ASCII character density,
   // isometric corner brackets, strata tick rings, and typographic elevation weighting.
-  function drawAsciiDepthNode(node, radius, isHovered, isTarget, zoomK, isDimmed = false) {
+  function drawAsciiDepthNode(node, radius, isHovered, isTarget, zoomK, isDimmed = false, isPinned = false) {
     if (isDimmed) {
       // Dimmed state for unselected tabs: faint, flat single dot in muted slate
       ctx.save();
@@ -2958,7 +3128,7 @@
     }
 
     const yellow = '#ffeaa7';
-    const color = isHovered ? '#ffffff' : (isTarget ? yellow : node.color);
+    const color = isPinned ? yellow : (isHovered ? '#ffffff' : (isTarget ? yellow : node.color));
     const elev = node.elevation || 0.5;
 
     ctx.save();
@@ -2968,7 +3138,7 @@
     // Micro-ASCII LOD for Macro/Zoomed-out View:
     // When zoomed out, suppress multi-character reticles and render crisp single glyphs
     // to maintain 60 FPS and delicate astronomical gossamer clarity.
-    if (zoomK < 0.45 && !isHovered && !isTarget) {
+    if (zoomK < 0.45 && !isHovered && !isTarget && !isPinned) {
       if (elev > 0.75) {
         ctx.font = 'bold 9px monospace';
         ctx.fillStyle = yellow;
@@ -2989,8 +3159,8 @@
       return;
     }
 
-    // 1. TOPOGRAPHIC STRATA RINGS & RETICLE (Character density scales with elevation)
-    if (elev > 0.75 || isHovered || isTarget) {
+    // 1. TOPOGRAPHIC STRATA RINGS & RETICLE (Character density scales with elevation or pinned state)
+    if (elev > 0.75 || isHovered || isTarget || isPinned) {
       // === SUMMIT / ANCHOR PEAK DEPTH ===
       // Outer ASCII tick ring: 8 high-density ticks [+ · : ·]
       ctx.save();
@@ -2999,7 +3169,7 @@
       const ringFontSize = Math.max(9, Math.round(9 / Math.sqrt(zoomK)));
       ctx.font = `${ringFontSize}px monospace`;
       ctx.fillStyle = isHovered ? '#ffffff' : yellow;
-      ctx.globalAlpha = isHovered ? 0.95 : 0.75;
+      ctx.globalAlpha = isHovered || isPinned ? 0.95 : 0.75;
       for (let i = 0; i < 8; i++) {
         const ang = (i / 8) * Math.PI * 2;
         ctx.fillText(ringChars[i], node.x + Math.cos(ang) * outerR, node.y + Math.sin(ang) * outerR);
@@ -3011,8 +3181,8 @@
       const bOffset = radius * (zoomK < 0.65 ? 1.6 : 1.3);
       const bSize = Math.max(10, Math.round(11 / Math.sqrt(zoomK)));
       ctx.font = `${bSize}px monospace`;
-      ctx.fillStyle = color;
-      ctx.globalAlpha = isHovered ? 1.0 : 0.85;
+      ctx.fillStyle = isPinned ? yellow : color;
+      ctx.globalAlpha = isHovered || isPinned ? 1.0 : 0.85;
       ctx.fillText('┌', node.x - bOffset, node.y - bOffset);
       ctx.fillText('┐', node.x + bOffset, node.y - bOffset);
       ctx.fillText('└', node.x - bOffset, node.y + bOffset);
@@ -3027,9 +3197,15 @@
       ctx.globalAlpha = 1.0;
       ctx.fillText('◈', node.x, node.y);
 
-      // Peak Indicator Arrow on top: ▲
-      ctx.font = `${Math.max(8, Math.round(8 / Math.sqrt(zoomK)))}px monospace`;
-      ctx.fillText('▲', node.x, node.y - bOffset - 2);
+      // Peak Indicator Arrow or PINNED badge on top:
+      ctx.font = `bold ${Math.max(8, Math.round(8 / Math.sqrt(zoomK)))}px monospace`;
+      if (isPinned) {
+        ctx.fillStyle = yellow;
+        ctx.fillText('📌 PINNED', node.x, node.y - bOffset - 4);
+      } else {
+        ctx.fillStyle = isHovered ? '#ffffff' : yellow;
+        ctx.fillText('▲', node.x, node.y - bOffset - 2);
+      }
       ctx.restore();
 
     } else if (elev > 0.45) {
@@ -3110,7 +3286,8 @@
     ctx.scale(currentTransform.k, currentTransform.k);
 
     const zoomK = currentTransform.k;
-    const showThumbnails = zoomK >= 1.25;
+    const allRenderNodes = isTwinViewActive ? [...networkNodes, ...secondaryNetworkNodes] : networkNodes;
+    const allRenderLinks = isTwinViewActive ? [...networkLinks, ...secondaryNetworkLinks, ...twinInterLinks] : networkLinks;
 
     const [left, top] = currentTransform.invert([0, 0]);
     const [right, bottom] = currentTransform.invert([width, height]);
@@ -3136,6 +3313,45 @@
       }
     }
     ctx.restore();
+
+    // 0a. TWIN DIGSITES RESONANCE MERIDIAN (SPLIT SIDE-BY-SIDE VIEW)
+    if (isTwinViewActive && twinViewMode === 'split') {
+      ctx.save();
+      const meridianX = width / 2;
+
+      // Vertical dashed golden dividing line
+      ctx.setLineDash([8 / zoomK, 6 / zoomK]);
+      ctx.strokeStyle = 'rgba(210, 153, 34, 0.45)';
+      ctx.lineWidth = Math.max(1, 1.4 / zoomK);
+      ctx.beginPath();
+      ctx.moveTo(meridianX, top - pad);
+      ctx.lineTo(meridianX, bottom + pad);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Overhead Meridian Hemisphere Banners
+      const bannerY = top + (18 / zoomK);
+      const bannerFontSize = Math.max(10, Math.round(11 / Math.sqrt(zoomK)));
+      ctx.font = `bold ${bannerFontSize}px monospace`;
+      ctx.textBaseline = 'middle';
+
+      // Left Hemisphere: Digsite A
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#79c0ff';
+      ctx.fillText(`🏛️ PRIMARY DIGSITE A (${networkNodes.length}) ◀`, meridianX - (22 / zoomK), bannerY);
+
+      // Right Hemisphere: Digsite B
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#f0883e';
+      ctx.fillText(`▶ SECONDARY DIGSITE B (${secondaryNetworkNodes.length}) 🏺`, meridianX + (22 / zoomK), bannerY);
+
+      // Center Resonance Pill Badge
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffeaa7';
+      ctx.fillText(`✦ [${twinResonancePercent}% VOCABULARY RESONANCE] ✦`, meridianX, bannerY + (16 / zoomK));
+
+      ctx.restore();
+    }
 
     // 0b. CONCENTRIC ASCII STRATA ISOBARS (DEPTH WITHOUT BLURRY GLOW)
     const clusterCentroidMap = new Map();
@@ -3305,9 +3521,9 @@
     const correlationLinks = new Set();
 
     if (activeClusterFilters.size > 1) {
-      networkLinks.forEach(link => {
-        const s = typeof link.source === 'object' ? link.source : networkNodes[link.source];
-        const t = typeof link.target === 'object' ? link.target : networkNodes[link.target];
+      allRenderLinks.forEach(link => {
+        const s = typeof link.source === 'object' ? link.source : allRenderNodes.find(n => n.id === link.source);
+        const t = typeof link.target === 'object' ? link.target : allRenderNodes.find(n => n.id === link.target);
         if (s && t && activeClusterFilters.has(s.cluster) && activeClusterFilters.has(t.cluster) && s.cluster !== t.cluster) {
           bridgeNodeIds.add(s.id);
           bridgeNodeIds.add(t.id);
@@ -3317,11 +3533,47 @@
     }
 
     // 2. TERRAIN RIDGELINES (LINKS WITH SCALE-INVARIANT VISIBILITY)
-    networkLinks.forEach(link => {
-      const source = link.source;
-      const target = link.target;
+    allRenderLinks.forEach(link => {
+      const source = typeof link.source === 'object' ? link.source : allRenderNodes.find(n => n.id === link.source);
+      const target = typeof link.target === 'object' ? link.target : allRenderNodes.find(n => n.id === link.target);
+      if (!source || !target) return;
+
       const isConnHovered = hoveredNode && (hoveredNode.id === source.id || hoveredNode.id === target.id);
-      const avgElev = (source.elevation + target.elevation) / 2;
+      const isConnPinned = pinnedNode && (pinnedNode.id === source.id || pinnedNode.id === target.id);
+      const avgElev = ((source.elevation || 0.5) + (target.elevation || 0.5)) / 2;
+
+      // Handle Twin Digsite Inter-Links (The cross-meridian resonance bridges)
+      if (link.isTwinBridge) {
+        ctx.beginPath();
+        const midX = (source.x + target.x) / 2;
+        const midY = (source.y + target.y) / 2 - Math.abs(target.x - source.x) * 0.08;
+        ctx.moveTo(source.x, source.y);
+        ctx.quadraticCurveTo(midX, midY, target.x, target.y);
+
+        ctx.strokeStyle = (isConnHovered || isConnPinned) ? '#ffeaa7' : 'rgba(210, 153, 34, 0.55)';
+        ctx.lineWidth = (isConnHovered || isConnPinned) ? Math.max(2.8, 2.2 / Math.sqrt(zoomK)) : Math.max(1.2, 0.9 / Math.sqrt(zoomK));
+        ctx.globalAlpha = (isConnHovered || isConnPinned) ? 1.0 : 0.65;
+        ctx.stroke();
+
+        if (zoomK >= 0.45 || isConnHovered || isConnPinned) {
+          ctx.save();
+          const glyphSize = Math.max(11, Math.min(20, 10 / zoomK));
+          ctx.font = `bold ${glyphSize}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#ffeaa7';
+          ctx.globalAlpha = (isConnHovered || isConnPinned) ? 1.0 : 0.85;
+          ctx.fillText('✦', midX, midY);
+
+          if ((isConnHovered || isConnPinned) && link.word) {
+            ctx.font = `${Math.max(9, Math.round(9 / zoomK))}px monospace`;
+            ctx.fillStyle = '#ffeaa7';
+            ctx.fillText(`[✦ ${link.word}]`, midX, midY - (14 / zoomK));
+          }
+          ctx.restore();
+        }
+        return;
+      }
 
       const isCrossCorrelation = correlationLinks.has(link);
       const isLinkInActiveClusters = activeClusterFilters.size === 0 || 
@@ -3333,7 +3585,7 @@
       ctx.moveTo(source.x, source.y);
       ctx.lineTo(target.x, target.y);
 
-      if (isConnHovered) {
+      if (isConnHovered || isConnPinned) {
         ctx.strokeStyle = '#ffeaa7';
         ctx.lineWidth = Math.max(2.8, 2.2 / Math.sqrt(zoomK));
         ctx.globalAlpha = 0.98;
@@ -3367,7 +3619,7 @@
         ctx.stroke();
       } else {
         // Normal or intra-cluster link with density-adaptive gossamer translucency
-        const densityFactor = networkNodes.length > 500 ? Math.sqrt(500 / networkNodes.length) : 1.0;
+        const densityFactor = allRenderNodes.length > 500 ? Math.sqrt(500 / allRenderNodes.length) : 1.0;
         const minW = Math.max(0.4, 0.9 * densityFactor);
         ctx.lineWidth = Math.max(minW, (0.45 + avgElev * 0.40) * densityFactor / Math.sqrt(zoomK));
         ctx.strokeStyle = avgElev > 0.65 ? 'rgba(255, 234, 167, 0.42)' : 'rgba(88, 166, 255, 0.28)';
@@ -3409,8 +3661,12 @@
       ctx.restore();
     }
 
-    // 4. DRAW NODES (Render order: Dimmed nodes first -> Active nodes -> Bridge nodes on top)
-    const sortedRenderNodes = [...networkNodes].sort((a, b) => {
+    // 4. DRAW NODES (Render order: Dimmed nodes first -> Active nodes -> Bridge nodes -> Pinned node on top)
+    const sortedRenderNodes = [...allRenderNodes].sort((a, b) => {
+      const aPinned = pinnedNode && pinnedNode.id === a.id;
+      const bPinned = pinnedNode && pinnedNode.id === b.id;
+      if (aPinned !== bPinned) return aPinned ? 1 : -1;
+
       const aDimmed = activeClusterFilters.size > 0 && !activeClusterFilters.has(a.cluster);
       const bDimmed = activeClusterFilters.size > 0 && !activeClusterFilters.has(b.cluster);
       if (aDimmed !== bDimmed) return aDimmed ? -1 : 1;
@@ -3431,12 +3687,14 @@
       }
 
       const isHovered = hoveredNode && hoveredNode.id === node.id;
+      const isPinned = pinnedNode && pinnedNode.id === node.id;
       const isTarget = activeSimilarityTarget && activeSimilarityTarget.id === node.id;
       const isNodeInActiveCluster = activeClusterFilters.size === 0 || activeClusterFilters.has(node.cluster);
-      const isDimmed = activeClusterFilters.size > 0 && !isNodeInActiveCluster && !isHovered;
+      const isDimmed = activeClusterFilters.size > 0 && !isNodeInActiveCluster && !isHovered && !isPinned;
       const isBridgeNode = bridgeNodeIds.has(node.id);
-      const radius = getNodeRenderRadius(node, zoomK) * (isHovered ? 1.15 : (isDimmed ? 0.6 : (isBridgeNode ? 1.25 : 1)));
+      const radius = getNodeRenderRadius(node, zoomK) * (isHovered || isPinned ? 1.15 : (isDimmed ? 0.6 : (isBridgeNode ? 1.25 : 1)));
       const img = preloadedImages.get(node.shortcode);
+      const canShowThumb = shouldNodeShowThumbnail(node, zoomK);
 
       if (isDimmed) {
         ctx.globalAlpha = 0.06;
@@ -3444,10 +3702,10 @@
         const fogAlpha = zoomK < 1.1 
           ? Math.max(0.55, 0.40 + node.elevation * 0.60) 
           : Math.min(1.0, 0.80 + node.elevation * 0.20);
-        ctx.globalAlpha = isHovered ? 1.0 : fogAlpha;
+        ctx.globalAlpha = (isHovered || isPinned) ? 1.0 : fogAlpha;
       }
 
-      if (showThumbnails && img && img.complete && img.naturalWidth > 0) {
+      if (canShowThumb && img && img.complete && img.naturalWidth > 0) {
         if (isDimmed) {
           ctx.save();
           ctx.globalAlpha = 0.06;
@@ -3467,34 +3725,41 @@
 
           // Wireframe ASCII Reticle Corners [ ┌ ┐ └ ┘ ]
           ctx.save();
-          ctx.font = '12px monospace';
-          ctx.fillStyle = isHovered ? '#fff' : (isTarget ? '#ffeaa7' : node.color);
-          const rOffset = radius + 2;
+          ctx.font = `${isPinned ? 'bold 13px' : '12px'} monospace`;
+          ctx.fillStyle = isPinned ? '#ffeaa7' : (isHovered ? '#fff' : (isTarget ? '#ffeaa7' : node.color));
+          const rOffset = radius + (isPinned ? 4 : 2);
           ctx.fillText('┌', node.x - rOffset, node.y - rOffset);
           ctx.fillText('┐', node.x + rOffset, node.y - rOffset);
           ctx.fillText('└', node.x - rOffset, node.y + rOffset);
           ctx.fillText('┘', node.x + rOffset, node.y + rOffset);
 
-          // ASCII Strata Elevation Tag below thumbnail: [▲850m] or [·150m]
-          const elevTag = node.elevation > 0.75 
-            ? `[▲${Math.round(node.elevation * 1000)}m]` 
-            : `[·${Math.round(node.elevation * 1000)}m]`;
-          ctx.font = '8px monospace';
-          ctx.fillStyle = node.elevation > 0.75 ? '#ffeaa7' : 'rgba(255,255,255,0.7)';
-          ctx.textAlign = 'center';
-          ctx.fillText(elevTag, node.x, node.y + radius + 11);
+          // Pinned badge or elevation tag
+          if (isPinned) {
+            ctx.font = 'bold 9px monospace';
+            ctx.fillStyle = '#ffeaa7';
+            ctx.textAlign = 'center';
+            ctx.fillText('📌 PINNED', node.x, node.y - rOffset - 3);
+          } else {
+            const elevTag = node.elevation > 0.75 
+              ? `[▲${Math.round(node.elevation * 1000)}m]` 
+              : `[·${Math.round(node.elevation * 1000)}m]`;
+            ctx.font = '8px monospace';
+            ctx.fillStyle = node.elevation > 0.75 ? '#ffeaa7' : 'rgba(255,255,255,0.7)';
+            ctx.textAlign = 'center';
+            ctx.fillText(elevTag, node.x, node.y + radius + 11);
+          }
           ctx.restore();
 
           // Content icon badge
           ctx.fillStyle = 'rgba(5, 7, 13, 0.9)';
-          ctx.strokeStyle = '#ffeaa7';
+          ctx.strokeStyle = isPinned ? '#ffeaa7' : '#58a6ff';
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.arc(node.x + radius * 0.65, node.y - radius * 0.65, 8.5, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
           ctx.font = '10px monospace';
-          ctx.fillStyle = '#ffeaa7';
+          ctx.fillStyle = isPinned ? '#ffeaa7' : '#79c0ff';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(node.contentType === 'Reel' ? '🎬' : '📷', node.x + radius * 0.65, node.y - radius * 0.65);
@@ -3502,7 +3767,7 @@
 
       } else {
         // === PURE ASCII DEPTH ENGINE (ALL NON-THUMBNAIL ZOOMS) ===
-        drawAsciiDepthNode(node, radius, isHovered, isTarget, zoomK, isDimmed);
+        drawAsciiDepthNode(node, radius, isHovered, isTarget, zoomK, isDimmed, isPinned);
       }
 
       // CORRELATION BRIDGE RETICLE: Highlight intersection nodes between active themes!
@@ -3529,21 +3794,28 @@
     const candidateLabelNodes = sortedRenderNodes.filter(node => {
       if (node.x < left - pad || node.x > right + pad || node.y < top - pad || node.y > bottom + pad) return false;
       const isHovered = hoveredNode && hoveredNode.id === node.id;
+      const isPinned = pinnedNode && pinnedNode.id === node.id;
       const isTarget = activeSimilarityTarget && activeSimilarityTarget.id === node.id;
       const isNodeInActiveCluster = activeClusterFilters.size === 0 || activeClusterFilters.has(node.cluster);
-      const isDimmed = activeClusterFilters.size > 0 && !isNodeInActiveCluster && !isHovered;
+      const isDimmed = activeClusterFilters.size > 0 && !isNodeInActiveCluster && !isHovered && !isPinned;
       if (isDimmed) return false;
 
       const isBridgeNode = bridgeNodeIds.has(node.id);
 
-      return isHovered || isTarget ||
-        (zoomK >= 0.90) ||
-        (isBridgeNode && (zoomK >= 0.38 || node.elevation > 0.45)) ||
-        (zoomK >= 0.52 && node.elevation > 0.52) ||
-        (zoomK >= 0.28 && node.elevation > 0.78);
+      // Strict culling: only show labels for pinned, hovered, target, summits, and prominent bridges:
+      if (isHovered || isPinned || isTarget) return true;
+      if (isBridgeNode && (zoomK >= 0.55 || node.elevation > 0.65)) return true;
+      if (node.elevation > 0.84 && zoomK >= 0.70) return true;
+      if (node.elevation > 0.68 && zoomK >= 1.6) return true;
+      if (zoomK >= 2.8) return true;
+      return false;
     });
 
     candidateLabelNodes.sort((a, b) => {
+      const aPinned = pinnedNode && pinnedNode.id === a.id;
+      const bPinned = pinnedNode && pinnedNode.id === b.id;
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
+
       const aHover = hoveredNode && hoveredNode.id === a.id;
       const bHover = hoveredNode && hoveredNode.id === b.id;
       if (aHover !== bHover) return aHover ? -1 : 1;
@@ -3563,17 +3835,22 @@
       return (b.elevation || 0) - (a.elevation || 0);
     });
 
-    candidateLabelNodes.forEach(node => {
+    // Cap visible candidate labels to at most 45 to prevent visual noise completely
+    const visibleCandidates = candidateLabelNodes.slice(0, 45);
+
+    visibleCandidates.forEach(node => {
       const isHovered = hoveredNode && hoveredNode.id === node.id;
+      const isPinned = pinnedNode && pinnedNode.id === node.id;
       const isTarget = activeSimilarityTarget && activeSimilarityTarget.id === node.id;
       const isBridgeNode = bridgeNodeIds.has(node.id);
-      const radius = getNodeRenderRadius(node, zoomK) * (isHovered ? 1.15 : (isBridgeNode ? 1.25 : 1));
+      const radius = getNodeRenderRadius(node, zoomK) * (isHovered || isPinned ? 1.15 : (isBridgeNode ? 1.25 : 1));
 
-      const targetScreenPx = isBridgeNode ? 12 : (node.elevation > 0.75 ? 11.5 : 10);
+      const targetScreenPx = isBridgeNode ? 12 : (node.elevation > 0.75 || isPinned ? 11.5 : 10);
       const labelFontSize = Math.max(9, Math.round(targetScreenPx / zoomK));
 
-      const labelText = isBridgeNode ? `✦ @${node.creator}` : `@${node.creator}`;
-      ctx.font = `${node.elevation > 0.75 || isBridgeNode ? 'bold ' : ''}${labelFontSize}px monospace`;
+      const prefixTag = isPinned ? '📌 ' : (isBridgeNode ? '✦ ' : (node.digsiteSource === 'secondary' ? '🏺 ' : ''));
+      const labelText = `${prefixTag}@${node.creator}`;
+      ctx.font = `${node.elevation > 0.75 || isBridgeNode || isPinned ? 'bold ' : ''}${labelFontSize}px monospace`;
       const textMetrics = ctx.measureText(labelText);
       const textW = textMetrics.width;
       const textH = labelFontSize;
@@ -3594,7 +3871,7 @@
       ];
 
       let chosenPos = null;
-      if (isHovered || isTarget) {
+      if (isHovered || isPinned || isTarget) {
         chosenPos = positions[0];
       } else {
         for (const pos of positions) {
@@ -3616,13 +3893,13 @@
         });
 
         ctx.save();
-        ctx.fillStyle = isHovered 
+        ctx.fillStyle = (isHovered || isPinned) 
           ? 'rgba(15, 23, 42, 0.96)' 
           : (isBridgeNode ? 'rgba(26, 20, 10, 0.88)' : 'rgba(5, 7, 13, 0.82)');
-        ctx.strokeStyle = isHovered 
+        ctx.strokeStyle = (isHovered || isPinned) 
           ? '#ffeaa7' 
           : (isBridgeNode ? 'rgba(255, 234, 167, 0.6)' : (node.elevation > 0.75 ? 'rgba(255, 234, 167, 0.3)' : 'rgba(255, 255, 255, 0.12)'));
-        ctx.lineWidth = Math.max(0.8, 1 / zoomK);
+        ctx.lineWidth = Math.max(0.8, (isPinned ? 1.5 : 1) / zoomK);
         
         drawRoundedRect(ctx, chosenPos.x, chosenPos.y, boxW, boxH, 3 / zoomK);
         ctx.fill();
@@ -3630,19 +3907,19 @@
 
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillStyle = isHovered 
+        ctx.fillStyle = (isHovered || isPinned) 
           ? '#ffeaa7' 
           : (isBridgeNode ? '#ffeaa7' : (node.elevation > 0.75 ? '#ffeaa7' : '#e6edf3'));
-        ctx.globalAlpha = isHovered ? 1.0 : (isBridgeNode ? 1.0 : (node.elevation > 0.75 ? 0.95 : 0.88));
+        ctx.globalAlpha = (isHovered || isPinned) ? 1.0 : (isBridgeNode ? 1.0 : (node.elevation > 0.75 ? 0.95 : 0.88));
         ctx.fillText(labelText, chosenPos.x + chipPadX, chosenPos.y + chipPadY);
 
-        if (isHovered || (zoomK >= 1.45 && node.elevation > 0.75)) {
-          const subText = isBridgeNode ? '✦ THEMATIC BRIDGE' : (currentHeightMode === 'chrono' 
+        if (isHovered || isPinned || (zoomK >= 1.45 && node.elevation > 0.75)) {
+          const subText = isPinned ? '📌 PINNED [LOCKED]' : (isBridgeNode ? '✦ THEMATIC BRIDGE' : (currentHeightMode === 'chrono' 
             ? (node.dateFormatted || `▲${Math.round(node.elevation * 1000)}m`) 
-            : `▲${Math.round(node.elevation * 1000)}m`);
+            : `▲${Math.round(node.elevation * 1000)}m`));
           const subFontSize = Math.max(8, Math.round(8 / zoomK));
           ctx.font = `${subFontSize}px monospace`;
-          ctx.fillStyle = isBridgeNode ? '#ffeaa7' : '#8b949e';
+          ctx.fillStyle = isPinned || isBridgeNode ? '#ffeaa7' : '#8b949e';
           ctx.fillText(subText, chosenPos.x + chipPadX, chosenPos.y + boxH + (2 / zoomK));
         }
 
@@ -4540,6 +4817,341 @@
 
     const resBox = document.getElementById('comparisonResults');
     if (resBox) resBox.style.display = 'block';
+
+    twinResonancePercent = resonancePercent;
+    safeSetText('twinResonanceBadge', `${resonancePercent}% RESONANCE`);
+    safeSetText('twinCountA', `${primaryList.length} items`);
+    safeSetText('twinCountB', `${secondaryList.length} items`);
+    const btnTwin = document.getElementById('btnToggleTwinView');
+    if (btnTwin) btnTwin.style.display = 'inline-flex';
+  }
+
+  // SIMULTANEOUS DUAL DIGSITE (TWIN VIEW) ENGINE
+  function processSecondaryDigsite(secData) {
+    if (!secData || !Array.isArray(secData) || secData.length === 0) return;
+
+    const items = secData.filter(i => i && typeof i === 'object');
+    const N = items.length;
+
+    secondaryEnrichedItems = items.map((item, idx) => {
+      const creator = extractCreator(item.url) || item.creator || 'unknown';
+      const musicData = detectMusicAttributes(item.captionSummary, creator);
+      const geoData = detectGeoAttributes(item.captionSummary);
+
+      let timestamp = 0;
+      let dateFormatted = 'Undated';
+      const rawDate = item.harvestedAt || item.savedAt || item.timestamp || item.takenAt;
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) {
+          timestamp = d.getTime();
+          dateFormatted = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+      }
+      if (!timestamp) timestamp = Date.now() - idx * 60000;
+
+      const rawText = item.captionSummary || '';
+      let text = rawText.toLowerCase();
+      let extraTokens = [];
+
+      const hashtagMatches = rawText.match(/#([\p{L}\p{N}_]+)/gu) || [];
+      const cleanedHashtags = hashtagMatches
+        .map(h => h.replace(/^#/, '').toLowerCase().replace(/_/g, ''))
+        .filter(h => h.length > 2 && !STOP_WORDS.has(h));
+      cleanedHashtags.forEach(tag => extraTokens.push(tag, tag, tag));
+
+      if (creator) {
+        const creatorToken = creator.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (creatorToken.length > 3 && !STOP_WORDS.has(creatorToken)) extraTokens.push(creatorToken);
+      }
+
+      const allTokens = text
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !STOP_WORDS.has(w))
+        .concat(extraTokens);
+
+      return {
+        ...item,
+        id: `sec_${idx}`,
+        secondaryIndex: idx,
+        digsiteSource: 'secondary',
+        creator,
+        contentType: item.contentType || 'Post',
+        captionSummary: item.captionSummary || '',
+        musicData,
+        geoData,
+        timestamp,
+        dateFormatted,
+        tokens: allTokens
+      };
+    });
+
+    const df = {};
+    secondaryEnrichedItems.forEach(item => {
+      const seen = new Set(item.tokens);
+      seen.forEach(w => df[w] = (df[w] || 0) + 1);
+    });
+
+    secondaryEnrichedItems.forEach(item => {
+      const tf = {};
+      item.tokens.forEach(w => tf[w] = (tf[w] || 0) + 1);
+      const vec = {};
+      let mag = 0;
+      for (const w in tf) {
+        const idf = Math.log(1 + N / (df[w] || 1));
+        const val = (tf[w] / item.tokens.length) * idf;
+        vec[w] = val;
+        mag += val * val;
+      }
+      mag = Math.sqrt(mag) || 1;
+      for (const w in vec) vec[w] /= mag;
+      item.tfidf = vec;
+    });
+
+    const K = 6;
+    secondaryEnrichedItems.forEach((item, idx) => {
+      item.cluster = idx % K;
+    });
+    secondaryClusters = Array.from({ length: K }, (_, k) => ({
+      id: k,
+      label: `Digsite B Strata ${k + 1}`,
+      color: SECONDARY_CLUSTER_COLORS[k % SECONDARY_CLUSTER_COLORS.length],
+      count: secondaryEnrichedItems.filter(i => i.cluster === k).length
+    }));
+
+    buildTwinCrossLinks();
+  }
+
+  function buildTwinCrossLinks() {
+    twinInterLinks = [];
+    if (!enrichedItems.length || !secondaryEnrichedItems.length) return;
+
+    const mapA = new Map();
+    enrichedItems.forEach(i => {
+      (i.tokens || []).forEach(w => mapA.set(w, (mapA.get(w) || 0) + 1));
+    });
+
+    const mapB = new Map();
+    secondaryEnrichedItems.forEach(i => {
+      (i.tokens || []).forEach(w => mapB.set(w, (mapB.get(w) || 0) + 1));
+    });
+
+    const sharedWords = [];
+    mapA.forEach((cntA, word) => {
+      if (mapB.has(word)) {
+        sharedWords.push({ word, score: cntA * mapB.get(word) });
+      }
+    });
+    sharedWords.sort((a, b) => b.score - a.score);
+
+    const topShared = sharedWords.slice(0, 25).map(s => s.word);
+    const topSharedSet = new Set(topShared);
+
+    const creatorsA = new Map();
+    enrichedItems.forEach(i => creatorsA.set(i.creator.toLowerCase(), i));
+
+    const linkedPairs = new Set();
+    const candidateNodesB = secondaryEnrichedItems.slice(0, Math.min(secondaryEnrichedItems.length, 800));
+
+    candidateNodesB.forEach(itemB => {
+      if (twinInterLinks.length >= 35) return;
+
+      if (itemB.creator && creatorsA.has(itemB.creator.toLowerCase())) {
+        const itemA = creatorsA.get(itemB.creator.toLowerCase());
+        const pairKey = `${itemA.id}_${itemB.id}`;
+        if (!linkedPairs.has(pairKey)) {
+          linkedPairs.add(pairKey);
+          twinInterLinks.push({
+            source: itemA.id,
+            target: itemB.id,
+            weight: 0.95,
+            isTwinBridge: true,
+            word: `@${itemB.creator}`
+          });
+        }
+      }
+
+      if (twinInterLinks.length < 35) {
+        for (const token of (itemB.tokens || [])) {
+          if (topSharedSet.has(token)) {
+            const matchA = enrichedItems.find(i => (i.tokens || []).includes(token));
+            if (matchA) {
+              const pairKey = `${matchA.id}_${itemB.id}`;
+              if (!linkedPairs.has(pairKey)) {
+                linkedPairs.add(pairKey);
+                twinInterLinks.push({
+                  source: matchA.id,
+                  target: itemB.id,
+                  weight: 0.75,
+                  isTwinBridge: true,
+                  word: token
+                });
+                break;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function buildTwinNetworkGraph() {
+    const wrap = document.getElementById('canvasWrap');
+    const width = wrap.clientWidth || 900;
+    const height = wrap.clientHeight || 620;
+
+    networkNodes.forEach(node => {
+      node.digsiteSource = 'primary';
+    });
+
+    const maxSecNodes = Math.min(secondaryEnrichedItems.length, 1200);
+    const secSlice = secondaryEnrichedItems.slice(0, maxSecNodes);
+
+    secondaryNetworkNodes = secSlice.map((item, i) => {
+      const c = secondaryClusters.find(cl => cl.id === item.cluster);
+      const elev = 0.35 + (i % 7 === 0 ? 0.45 : (i % 3 === 0 ? 0.25 : 0.05));
+      return {
+        ...item,
+        color: c ? c.color : '#f0883e',
+        elevation: elev,
+        centralityScore: elev,
+        baseRadius: elev > 0.7 ? 22 : 14,
+        tier: elev > 0.7 ? 'peak' : (elev > 0.45 ? 'ridge' : 'valley'),
+        x: (width * 0.74) + (Math.random() - 0.5) * (width * 0.35),
+        y: (height * 0.50) + (Math.random() - 0.5) * (height * 0.65)
+      };
+    });
+
+    secondaryNetworkLinks = [];
+    for (let i = 0; i < secondaryNetworkNodes.length - 1; i += 2) {
+      secondaryNetworkLinks.push({
+        source: secondaryNetworkNodes[i].id,
+        target: secondaryNetworkNodes[i + 1].id,
+        weight: 0.35
+      });
+    }
+
+    const centerAX = width * 0.26;
+    const centerBX = width * 0.74;
+    const centerY = height * 0.50;
+
+    networkNodes.forEach(node => {
+      if (twinViewMode === 'split') {
+        if (!node.x || node.x > width * 0.48) {
+          node.x = centerAX + (Math.random() - 0.5) * (width * 0.3);
+          node.y = centerY + (Math.random() - 0.5) * (height * 0.5);
+        }
+      }
+    });
+
+    secondaryNetworkNodes.forEach(node => {
+      if (twinViewMode === 'split') {
+        if (!node.x || node.x < width * 0.52) {
+          node.x = centerBX + (Math.random() - 0.5) * (width * 0.3);
+          node.y = centerY + (Math.random() - 0.5) * (height * 0.5);
+        }
+      }
+    });
+
+    const combinedNodes = [...networkNodes, ...secondaryNetworkNodes];
+    const combinedLinks = [...networkLinks, ...secondaryNetworkLinks, ...twinInterLinks];
+
+    if (simulation) simulation.stop();
+
+    if (twinViewMode === 'split') {
+      simulation = d3.forceSimulation(combinedNodes)
+        .alphaDecay(0.04)
+        .velocityDecay(0.35)
+        .force("link", d3.forceLink(combinedLinks).id(d => d.id).distance(d => d.isTwinBridge ? 180 : 80).strength(d => d.isTwinBridge ? 0.05 : 0.6))
+        .force("charge", d3.forceManyBody().strength(combinedNodes.length > 1000 ? -45 : -80))
+        .force("splitX", d3.forceX(d => d.digsiteSource === 'primary' ? centerAX : centerBX).strength(0.48))
+        .force("centerY", d3.forceY(centerY).strength(0.12))
+        .force("collide", d3.forceCollide().radius(d => d.baseRadius + 6))
+        .on("tick", requestRender)
+        .on("end", () => {
+          calculateIntersections();
+          requestRender();
+          fitNetworkToView(600);
+        });
+    } else {
+      simulation = d3.forceSimulation(combinedNodes)
+        .alphaDecay(0.04)
+        .velocityDecay(0.35)
+        .force("link", d3.forceLink(combinedLinks).id(d => d.id).distance(90).strength(d => d.isTwinBridge ? 0.4 : 0.7))
+        .force("charge", d3.forceManyBody().strength(-70))
+        .force("center", d3.forceCenter(width / 2, height / 2).strength(0.15))
+        .force("collide", d3.forceCollide().radius(d => d.baseRadius + 7))
+        .on("tick", requestRender)
+        .on("end", () => {
+          calculateIntersections();
+          requestRender();
+          fitNetworkToView(600);
+        });
+    }
+
+    simulation.alpha(1).restart();
+  }
+
+  function launchTwinNetworkFromModal() {
+    closeCompareModal();
+    if (!secondaryDigsite || secondaryDigsite.length === 0) {
+      alert("Please upload a secondary digsite archive first!");
+      return;
+    }
+    processSecondaryDigsite(secondaryDigsite);
+    isTwinViewActive = true;
+    twinViewMode = 'split';
+
+    const hud = document.getElementById('twinHeaderBar');
+    if (hud) hud.style.display = 'flex';
+    safeSetText('twinCountA', `${enrichedItems.length} items`);
+    safeSetText('twinCountB', `${secondaryDigsite.length} items`);
+    const btnTwin = document.getElementById('btnToggleTwinView');
+    if (btnTwin) btnTwin.style.display = 'inline-flex';
+
+    buildTwinNetworkGraph();
+    showToast("🪐 Launched Simultaneous Twin Digsites (Side-by-Side)!");
+  }
+
+  function toggleTwinDigsiteView() {
+    if (!secondaryDigsite) {
+      openCompareModal();
+      return;
+    }
+    isTwinViewActive = !isTwinViewActive;
+    const hud = document.getElementById('twinHeaderBar');
+    if (hud) hud.style.display = isTwinViewActive ? 'flex' : 'none';
+
+    if (isTwinViewActive) {
+      if (secondaryNetworkNodes.length === 0) processSecondaryDigsite(secondaryDigsite);
+      buildTwinNetworkGraph();
+      showToast("⇄ Twin Digsites: Active");
+    } else {
+      buildNetworkGraph();
+      showToast("⇄ Single Digsite View");
+    }
+  }
+
+  function setTwinMode(mode) {
+    twinViewMode = mode;
+    const btnSplit = document.getElementById('btnTwinSplit');
+    const btnUni = document.getElementById('btnTwinUnified');
+    if (btnSplit) btnSplit.className = mode === 'split' ? 'ctrl-btn active' : 'ctrl-btn';
+    if (btnUni) btnUni.className = mode === 'unified' ? 'ctrl-btn active' : 'ctrl-btn';
+
+    if (isTwinViewActive) {
+      buildTwinNetworkGraph();
+      showToast(`Twin Mode: ${mode === 'split' ? 'Side-by-Side (Split)' : 'Collision Cosmos (Unified)'}`);
+    }
+  }
+
+  function exitTwinView() {
+    isTwinViewActive = false;
+    const hud = document.getElementById('twinHeaderBar');
+    if (hud) hud.style.display = 'none';
+    buildNetworkGraph();
+    showToast("✕ Exited Twin View");
   }
 
   // EMBEDDED CONSOLE SCRAPER SOURCE CODE
@@ -4757,6 +5369,12 @@
         <div style="margin-top:14px; background:#161b22; border:1px solid #30363d; border-radius:8px; padding:12px;">
           <div style="font-weight:bold; color:#ffeaa7; font-family:monospace; font-size:12px; margin-bottom:6px;">✦ SHARED THEMATIC INTERSECTIONS & RESONANT KEYWORDS:</div>
           <div id="compareSharedKeywords" style="font-size:12px; color:#79c0ff; font-family:monospace; line-height:1.6;"></div>
+        </div>
+
+        <div style="margin-top:16px; text-align:center;">
+          <button class="export-btn" style="background:linear-gradient(90deg, #1f6feb, #8957e5); border:1px solid #a371f7; color:#fff; font-size:13px; font-weight:bold; padding:10px 22px; cursor:pointer; width:100%;" onclick="launchTwinNetworkFromModal()">
+            🪐 LAUNCH TWIN DIGSITE NETWORK (VIEW BOTH SIMULTANEOUSLY SIDE-BY-SIDE) ↗
+          </button>
         </div>
       </div>
     </div>
