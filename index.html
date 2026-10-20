@@ -1,0 +1,4767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>digsite ig collections ::: ascii terrain excavator</title>
+  <!-- D3.js v7 -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <!-- Leaflet.js -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #05070d;
+      --card-bg: #0e131f;
+      --card-hover: #161e30;
+      --accent: #e1306c;
+      --accent-music: #a371f7;
+      --accent-geo: #3fb950;
+      --accent-yellow: #ffeaa7;
+      --accent-gradient: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+      --text: #f0f6fc;
+      --text-muted: #8b949e;
+      --border: #1e2638;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container { max-width: 1440px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .digsite-ascii-header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ascii-logo {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      line-height: 1.15;
+      font-weight: 800;
+      color: #ffeaa7;
+      letter-spacing: -0.5px;
+      text-shadow: 0 0 10px rgba(255, 234, 167, 0.4);
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .digsite-meta-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #8b949e;
+      flex-wrap: wrap;
+    }
+
+    .digsite-meta-bar .meta-tag {
+      color: #ffeaa7;
+      font-weight: bold;
+      background: rgba(255, 234, 167, 0.12);
+      border: 1px solid rgba(255, 234, 167, 0.35);
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .digsite-meta-bar .meta-desc {
+      color: #c9d1d9;
+    }
+
+    .chrono-dir-btn {
+      background: rgba(255, 234, 167, 0.12);
+      border: 1px solid #ffeaa7;
+      color: #ffeaa7;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: monospace;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .chrono-dir-btn:hover {
+      background: #ffeaa7;
+      color: #05070d;
+      box-shadow: 0 0 12px rgba(255, 234, 167, 0.45);
+    }
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      background: var(--card-bg);
+      cursor: pointer;
+      transition: border-color 0.2s;
+      margin-bottom: 28px;
+    }
+    .drop-zone:hover { border-color: #ffeaa7; }
+    .drop-zone-icon { font-size: 40px; margin-bottom: 12px; }
+    .file-input { display: none; }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 4px; height: 100%;
+      background: var(--accent-gradient);
+    }
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .stat-value { font-size: 26px; font-weight: 700; color: #fff; }
+    .stat-subtext { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
+
+    /* Lens Selector Tabs */
+    .lens-tabs-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .lens-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+    .lens-tab {
+      background: #05070d;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .lens-tab:hover { background: #161e30; color: #fff; }
+    .lens-tab.active-thematic { background: rgba(255, 234, 167, 0.12); border-color: #ffeaa7; color: #ffeaa7; }
+    .lens-tab.active-music { background: rgba(163, 113, 247, 0.15); border-color: var(--accent-music); color: #d2a8ff; }
+    .lens-tab.active-geo { background: rgba(63, 185, 80, 0.15); border-color: var(--accent-geo); color: #7ee787; }
+    .lens-tab.active-chrono { background: rgba(88, 166, 255, 0.15); border-color: #58a6ff; color: #79c0ff; }
+    .lens-description { font-size: 13px; color: var(--text-muted); }
+
+    .height-mode-toggle {
+      display: inline-flex;
+      background: #05070d;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .height-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 5px 11px;
+      font-size: 12px;
+      font-family: monospace;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .height-btn:hover { color: #fff; background: #161e30; }
+    .height-btn.active {
+      background: rgba(255, 234, 167, 0.15);
+      color: #ffeaa7;
+      font-weight: 700;
+    }
+
+    /* NETWORK GRAPH CONTAINER */
+    .network-section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 28px;
+      position: relative;
+    }
+
+    .network-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .network-title {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: monospace;
+      color: #ffeaa7;
+    }
+
+    .network-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .ctrl-btn {
+      background: #161e30;
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: monospace;
+    }
+    .ctrl-btn:hover { background: #1e2638; border-color: #ffeaa7; color: #ffeaa7; }
+
+    .altitude-badge {
+      font-size: 12px;
+      font-family: monospace;
+      color: #ffeaa7;
+      background: rgba(255, 234, 167, 0.1);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 234, 167, 0.3);
+    }
+
+    .network-canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: 620px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #05070d;
+      border: 1px solid var(--border);
+    }
+
+    #networkCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    #networkCanvas:active { cursor: grabbing; }
+
+    /* ASCII Topographic Legend overlay */
+    .topo-legend {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      background: rgba(10, 14, 23, 0.94);
+      border: 1px solid rgba(255, 234, 167, 0.3);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 11px;
+      font-family: monospace;
+      color: #ffeaa7;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .legend-row { display: flex; align-items: center; gap: 8px; }
+
+    /* Node Hover Card Tooltip */
+    .node-tooltip-card {
+      position: absolute;
+      display: none;
+      pointer-events: none;
+      z-index: 50;
+      width: 250px;
+      background: rgba(10, 14, 23, 0.98);
+      border: 1px solid #ffeaa7;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.8);
+      transform: translate(15px, 15px);
+    }
+    .tooltip-thumb {
+      width: 100%;
+      height: 130px;
+      border-radius: 8px;
+      object-fit: cover;
+      margin-bottom: 8px;
+      background: #05070d;
+    }
+    .tooltip-creator { font-weight: 700; font-size: 13px; color: #ffeaa7; margin-bottom: 4px; font-family: monospace; }
+    .tooltip-caption {
+      font-size: 11px;
+      color: #c9d1d9;
+      line-height: 1.4;
+      max-height: 44px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+
+    /* Map Box */
+    #geoMapContainer {
+      height: 380px;
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+      display: none;
+    }
+
+    .cluster-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 18px;
+      transition: all 0.25s ease;
+      align-items: center;
+    }
+
+    .cluster-tag {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: grab;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: monospace;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+    }
+    .cluster-tag:active {
+      cursor: grabbing;
+    }
+    .cluster-tag:hover {
+      transform: translateY(-2px);
+    }
+    .cluster-tag.active {
+      transform: translateY(-2px);
+      box-shadow: 0 0 14px rgba(255, 234, 167, 0.4);
+    }
+
+    /* Dragging States */
+    .cluster-tag.dragging {
+      opacity: 0.35 !important;
+      border-style: dashed !important;
+      transform: scale(0.95);
+    }
+    .cluster-tag.drag-over {
+      border-left: 3px solid #ffeaa7 !important;
+      transform: translateX(4px) scale(1.03);
+    }
+
+    .drag-grip {
+      color: rgba(255, 255, 255, 0.35);
+      font-size: 11px;
+      margin-right: 1px;
+      cursor: grab;
+    }
+    .priority-badge {
+      font-size: 9px;
+      background: rgba(255, 234, 167, 0.15);
+      color: #ffeaa7;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: monospace;
+      border: 1px solid rgba(255, 234, 167, 0.3);
+    }
+
+    .correlation-summary-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 234, 167, 0.12);
+      border: 1px solid rgba(255, 234, 167, 0.35);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-family: monospace;
+      color: #ffeaa7;
+    }
+    .clear-multi-btn {
+      color: #ffeaa7;
+      cursor: pointer;
+      font-size: 10px;
+      padding: 2px 7px;
+      background: rgba(255, 234, 167, 0.15);
+      border-radius: 4px;
+      border: 1px solid rgba(255, 234, 167, 0.3);
+    }
+    .clear-multi-btn:hover {
+      background: #ffeaa7;
+      color: #05070d;
+    }
+
+    /* Tab Dimming: When any specific cluster tab is active, dim all non-selected tabs */
+    .cluster-pills.has-active .cluster-tag:not(.active) {
+      opacity: 0.28;
+      filter: grayscale(60%);
+      background: rgba(14, 19, 31, 0.35) !important;
+      border-color: rgba(255, 255, 255, 0.08) !important;
+      color: rgba(255, 255, 255, 0.45) !important;
+    }
+    .cluster-pills.has-active .cluster-tag:not(.active) .cluster-dot {
+      opacity: 0.4;
+    }
+    .cluster-pills.has-active .cluster-tag:not(.active):hover {
+      opacity: 0.85;
+      filter: grayscale(10%);
+      transform: translateY(-1px);
+      color: #fff !important;
+    }
+    .cluster-pills.has-active .cluster-tag.active {
+      opacity: 1.0 !important;
+      filter: none !important;
+      box-shadow: 0 0 16px rgba(255, 234, 167, 0.45);
+    }
+    .cluster-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* FULLSCREEN NETWORK STYLES */
+    .network-section:fullscreen,
+    .network-section:-webkit-full-screen,
+    .network-section.is-fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: 100vw !important;
+      margin: 0 !important;
+      padding: 16px 20px !important;
+      border-radius: 0 !important;
+      border: none !important;
+      z-index: 999999 !important;
+      background: #05070d !important;
+      display: flex !important;
+      flex-direction: column !important;
+      box-sizing: border-box !important;
+    }
+    .network-section:fullscreen .network-canvas-wrap,
+    .network-section:-webkit-full-screen .network-canvas-wrap,
+    .network-section.is-fullscreen .network-canvas-wrap {
+      flex: 1 1 auto !important;
+      height: 100% !important;
+      min-height: 0 !important;
+      border-radius: 12px !important;
+    }
+    .network-section:fullscreen .cluster-pills,
+    .network-section:-webkit-full-screen .cluster-pills,
+    .network-section.is-fullscreen .cluster-pills {
+      margin-bottom: 8px !important;
+    }
+
+    .fullscreen-exit-btn {
+      display: none;
+      background: rgba(22, 30, 48, 0.92);
+      border: 1px solid #58a6ff;
+      color: #58a6ff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .fullscreen-exit-btn:hover {
+      background: #58a6ff;
+      color: #05070d;
+    }
+    .network-section.is-fullscreen .fullscreen-exit-btn,
+    .network-section:fullscreen .fullscreen-exit-btn,
+    .network-section:-webkit-full-screen .fullscreen-exit-btn {
+      display: block;
+    }
+
+    /* TILED INFO INSPECTOR DRAWER */
+    .tiled-inspector-dock {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 380px;
+      max-width: 90vw;
+      background: rgba(5, 7, 13, 0.94);
+      border-left: 1px solid rgba(255, 234, 167, 0.25);
+      backdrop-filter: blur(12px);
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.6);
+    }
+    .tiled-inspector-dock.open {
+      transform: translateX(0);
+    }
+    .tiled-inspector-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 234, 167, 0.15);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(22, 30, 48, 0.6);
+    }
+    .tiled-inspector-title {
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffeaa7;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tiled-count-pill {
+      background: rgba(255, 234, 167, 0.15);
+      color: #ffeaa7;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 234, 167, 0.3);
+    }
+    .tiled-filter-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-family: monospace;
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .tiled-filter-btn:hover { color: #fff; border-color: rgba(255, 255, 255, 0.3); }
+    .tiled-filter-btn.active {
+      background: rgba(255, 234, 167, 0.15);
+      border-color: #ffeaa7;
+      color: #ffeaa7;
+      font-weight: bold;
+    }
+    .tiled-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 15px;
+      cursor: pointer;
+      padding: 2px 6px;
+      display: flex;
+      align-items: center;
+    }
+    .tiled-close-btn:hover { color: #fff; }
+    .tiled-card-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .tiled-card {
+      background: rgba(22, 30, 48, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .tiled-card:hover {
+      background: rgba(30, 41, 64, 0.9);
+      border-color: #ffeaa7;
+      transform: translateY(-2px);
+    }
+    .tiled-card.is-bridge {
+      border-color: rgba(255, 234, 167, 0.4);
+      background: rgba(35, 28, 15, 0.65);
+    }
+    .tiled-card.is-bridge:hover {
+      border-color: #ffeaa7;
+      background: rgba(48, 38, 20, 0.9);
+    }
+    .tiled-thumb {
+      width: 52px;
+      height: 52px;
+      border-radius: 6px;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .tiled-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .tiled-creator-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tiled-creator {
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #58a6ff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tiled-card.is-bridge .tiled-creator {
+      color: #ffeaa7;
+    }
+    .tiled-badge {
+      font-size: 10px;
+      font-family: monospace;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(255, 234, 167, 0.15);
+      color: #ffeaa7;
+      border: 1px solid rgba(255, 234, 167, 0.3);
+    }
+    .tiled-caption {
+      font-size: 11px;
+      color: #8b949e;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .tiled-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 2px;
+      font-size: 10px;
+      font-family: monospace;
+      color: #8b949e;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+    }
+
+    .search-input {
+      background: #05070d;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: #fff;
+      font-size: 14px;
+      width: 320px;
+      outline: none;
+      font-family: monospace;
+    }
+    .search-input:focus { border-color: #ffeaa7; }
+
+    .filter-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill-btn {
+      background: #05070d;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: monospace;
+    }
+    .pill-btn.active, .pill-btn:hover {
+      background: #ffeaa7;
+      color: #05070d;
+      border-color: #ffeaa7;
+      font-weight: bold;
+    }
+
+    /* Active Proximity Notice */
+    .active-similarity-banner {
+      display: none;
+      background: #161e30;
+      border: 1px solid #ffeaa7;
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      align-items: center;
+      justify-content: space-between;
+      font-family: monospace;
+    }
+
+    .clear-sim-btn {
+      background: #1e2638;
+      border: 1px solid var(--border);
+      color: #ffeaa7;
+      padding: 4px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: monospace;
+    }
+
+    /* Gallery Grid with Pagination */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .card.highlighted {
+      border: 2px solid #ffeaa7;
+      box-shadow: 0 0 18px rgba(255, 234, 167, 0.4);
+    }
+
+    .thumb-wrap {
+      width: 100%;
+      height: 260px;
+      background: #05070d;
+      position: relative;
+      overflow: hidden;
+    }
+    .thumb-wrap img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+
+    .type-badge {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .cluster-badge {
+      position: absolute;
+      top: 10px; left: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      color: #fff;
+    }
+
+    .meta-tag-pills {
+      position: absolute;
+      bottom: 10px; left: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tag-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .tag-music { background: rgba(163, 113, 247, 0.9); color: #fff; }
+    .tag-geo { background: rgba(63, 185, 80, 0.9); color: #fff; }
+
+    .similarity-pill {
+      position: absolute;
+      bottom: 10px; right: 10px;
+      background: #238636;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .card-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+      justify-content: space-between;
+    }
+
+    .creator-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .creator-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #ffeaa7;
+      text-decoration: none;
+      font-family: monospace;
+    }
+    .creator-name:hover { text-decoration: underline; }
+
+    .find-similar-btn {
+      background: transparent;
+      border: 1px solid #1e2638;
+      color: #8b949e;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: monospace;
+    }
+    .find-similar-btn:hover { border-color: #ffeaa7; color: #ffeaa7; }
+
+    .caption-text {
+      font-size: 13px;
+      color: #c9d1d9;
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    .view-btn { color: #ff7b72; text-decoration: none; font-weight: 600; }
+    .view-btn:hover { text-decoration: underline; }
+
+    .load-more-btn {
+      grid-column: 1 / -1;
+      background: #161e30;
+      border: 1px solid var(--border);
+      color: #ffeaa7;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      margin-top: 10px;
+      font-family: monospace;
+    }
+    .load-more-btn:hover { background: #1e2638; border-color: #ffeaa7; }
+
+    .export-btn {
+      background: #238636;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: white;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-family: monospace;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .export-btn:hover { background: #2ea043; transform: translateY(-1px); }
+
+    /* Scenario Selector Bar */
+    .scenario-selector-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 18px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .scenario-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #ffeaa7;
+      font-family: monospace;
+      letter-spacing: 0.5px;
+    }
+    .scenario-btn {
+      background: #05070d;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: monospace;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+    .scenario-btn:hover { background: #161e30; color: #fff; border-color: #58a6ff; }
+    .scenario-btn.active {
+      background: rgba(255, 234, 167, 0.15);
+      border-color: #ffeaa7;
+      color: #ffeaa7;
+      font-weight: 700;
+    }
+    .scenario-btn.drift-btn {
+      border-color: #a371f7;
+      color: #d2a8ff;
+    }
+    .scenario-btn.drift-btn:hover {
+      background: rgba(163, 113, 247, 0.2);
+      color: #fff;
+    }
+
+    /* Modals (Scraper Guide & Cross-Digsite Comparator) */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 7, 13, 0.88);
+      z-index: 100000;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      padding: 20px;
+    }
+    .modal-dialog {
+      background: #0d1117;
+      border: 1px solid #ffeaa7;
+      border-radius: 16px;
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 16px 64px rgba(0,0,0,0.9);
+      font-family: monospace;
+      color: #e2e8f0;
+    }
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #21262d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 234, 167, 0.05);
+    }
+    .modal-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffeaa7;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-close-btn {
+      background: transparent;
+      border: 1px solid #30363d;
+      color: #8b949e;
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-family: monospace;
+    }
+    .modal-close-btn:hover { color: #fff; border-color: #ff7b72; }
+    .modal-body { padding: 20px; }
+    .code-preview-box {
+      background: #05070d;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #79c0ff;
+      max-height: 180px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin: 10px 0;
+    }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 14px;
+    }
+    .compare-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .resonance-meter {
+      background: #21262d;
+      border-radius: 6px;
+      height: 20px;
+      overflow: hidden;
+      margin: 10px 0;
+      position: relative;
+    }
+    .resonance-fill {
+      background: linear-gradient(90deg, #2ea043, #ffeaa7, #58a6ff);
+      height: 100%;
+      transition: width 0.4s ease;
+    }
+
+    #dashboardContent { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:14px;">
+    <div class="digsite-ascii-header">
+      <pre class="ascii-logo">
+ ██████╗ ██╗ ██████╗ ███████╗██╗████████╗███████╗    ██╗ ██████╗ 
+ ██╔══██╗██║██╔════╝ ██╔════╝██║╚══██╔══╝██╔════╝    ██║██╔════╝ 
+ ██║  ██║██║██║  ███╗███████╗██║   ██║   █████╗      ██║██║  ███╗
+ ██║  ██║██║██║   ██║╚════██║██║   ██║   ██╔══╝      ██║██║   ██║
+ ██████╔╝██║╚██████╔╝███████║██║   ██║   ███████╗    ██║╚██████╔╝
+ ╚═════╝ ╚═╝ ╚═════╝ ╚══════╝╚═╝   ╚═╝   ╚══════╝    ╚═╝ ╚═════╝ 
+      ::: D I G S I T E   I G   C O L L E C T I O N S :::
+      </pre>
+      <div class="digsite-meta-bar">
+        <span class="meta-tag">[◈ DIGSITE ARCHAEOLOGY]</span>
+        <span class="meta-desc">ASCII Topographic Strata · Multi-Scenario Archaeological Excavator</span>
+        <span style="color:#58a6ff; font-family:monospace; margin-left:6px;">[v2.5_EXCAVATOR]</span>
+      </div>
+    </div>
+    <div class="header-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px;">
+      <button class="export-btn" style="background:#1f6feb; border-color:#388bfd;" onclick="openScraperModal()">⛏️ Ingest from IG</button>
+      <button class="export-btn" id="btnExportArchive" style="background:#8957e5; display:none;" onclick="exportDigsiteArchive()">💾 Export Archive</button>
+      <button class="export-btn" id="btnOpenCompare" style="background:#d29922; display:none;" onclick="openCompareModal()">⇄ Compare Digsites</button>
+      <button class="export-btn" id="exportCsvBtn" style="display:none;" onclick="exportToCSV()">Export CSV</button>
+    </div>
+  </header>
+
+  <!-- Upload / Drag & Drop -->
+  <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="drop-zone-icon">📥</div>
+    <h3>Drag and drop your Instagram JSON or .digsite.json file here</h3>
+    <p class="subtitle" style="margin-top: 6px;">or click to browse · Supports 4,000+ items with sub-second sparse index parsing</p>
+    <div style="margin-top: 14px;">
+      <button class="export-btn" style="background:transparent; border:1px solid #58a6ff; color:#79c0ff;" onclick="event.stopPropagation(); openScraperModal();">
+        ⛏️ Don't have a JSON? Click to copy the 1-click Instagram Scraper script
+      </button>
+    </div>
+    <input type="file" id="fileInput" class="file-input" accept=".json,.digsite.json">
+  </div>
+
+  <!-- Dashboard Content -->
+  <div id="dashboardContent">
+    <!-- Top Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Saved Items</div>
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-subtext">Collection items</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Format Split</div>
+        <div class="stat-value" id="statFormatSplit">0%</div>
+        <div class="stat-subtext" id="statFormatDetails">Reels vs Posts</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">🎵 Musical Content</div>
+        <div class="stat-value" id="statMusicCount">0</div>
+        <div class="stat-subtext">Tracks, covers & instruments</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">📍 Geographic Places</div>
+        <div class="stat-value" id="statGeoCount">0</div>
+        <div class="stat-subtext">Locations detected</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Unique Creators</div>
+        <div class="stat-value" id="statCreators">0</div>
+        <div class="stat-subtext" id="statTopCreator">-</div>
+      </div>
+    </div>
+
+    <!-- Multi-Scenario Clustering Controller Bar -->
+    <div class="scenario-selector-bar">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span class="scenario-title">◈ EXCAVATION SCENARIO:</span>
+        <button class="scenario-btn active" id="scen-balanced" onclick="setClusteringScenario('balanced')" title="Balanced archipelago of 8-10 thematic clusters">✦ Balanced Strata</button>
+        <button class="scenario-btn" id="scen-macro" onclick="setClusteringScenario('macro')" title="Broad umbrella kingdoms (4-5 macro clusters)">🌐 Broad Kingdoms</button>
+        <button class="scenario-btn" id="scen-micro" onclick="setClusteringScenario('micro')" title="Fine granular topic niches (14-18 deep clusters)">🔬 Deep Niches</button>
+        <button class="scenario-btn" id="scen-creators" onclick="setClusteringScenario('creators')" title="Cluster around dominant creator communities">👥 Creator Ecosystems</button>
+        <button class="scenario-btn" id="scen-temporal" onclick="setClusteringScenario('temporal')" title="Cluster into chronological emergence epochs">⏳ Temporal Strata</button>
+        <button class="scenario-btn drift-btn" id="scen-drift" onclick="driftClusteringScenario()" title="Stochastic latent re-seed / alternate emergent topology">🎲 Reshuffle Digsite</button>
+      </div>
+      <div id="scenarioDescription" style="font-size:11px; font-family:monospace; color:var(--text-muted);">
+        Balanced 8–10 thematic archipelagos with cross-cluster bridges.
+      </div>
+    </div>
+
+    <!-- Lens Selector Tabs -->
+    <div class="lens-tabs-container">
+      <div>
+        <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
+          Choose Proximity Lens
+        </div>
+        <div class="lens-tabs" style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
+          <button class="lens-tab active-thematic" id="tabThematic" onclick="switchLens('thematic')">
+            <span>🧠</span> General Thematic
+          </button>
+          <button class="lens-tab" id="tabMusic" onclick="switchLens('music')">
+            <span>🎵</span> Musical Theme
+          </button>
+          <button class="lens-tab" id="tabGeo" onclick="switchLens('geo')">
+            <span>📍</span> Geographic Theme
+          </button>
+          <button class="lens-tab" id="tabChrono" onclick="switchLens('chrono')">
+            <span>⏳</span> Chronological (Timeline)
+          </button>
+          <button class="chrono-dir-btn" id="btnChronoDir" style="display:none;" onclick="toggleChronoDirection(event)" title="Toggle Timeline Direction">
+            ⇄ Newest ➔ Oldest
+          </button>
+        </div>
+      </div>
+      <div class="lens-description" id="lensDescription">
+        Clustering posts by overall creative vocabulary, caption topics, and format.
+      </div>
+    </div>
+
+    <!-- NETWORK SECTION -->
+    <div class="network-section">
+      <div class="network-header">
+        <div class="network-title">
+          <span id="networkTitleIcon">🪐</span>
+          <span id="networkTitleText">::: ASCII TERRAIN & NETWORK INTERSECTION ENGINE :::</span>
+        </div>
+        <div class="network-controls">
+          <!-- Height Metric Selector -->
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:11px; font-family:monospace; color:var(--text-muted);">HEIGHT FXN:</span>
+            <div class="height-mode-toggle">
+              <button class="height-btn active" id="btnHeightCentrality" onclick="setHeightMode('centrality')">⛰️ Centrality</button>
+              <button class="height-btn" id="btnHeightChrono" onclick="setHeightMode('chrono')">⏳ Chrono (<span id="heightChronoLabel">Newest=Peak</span>)</button>
+              <button class="height-btn" id="btnHeightDegree" onclick="setHeightMode('degree')">🔗 Degree</button>
+            </div>
+          </div>
+          <span class="altitude-badge" id="altitudeBadge">ALTITUDE: 1,000m (1.0x)</span>
+          <button class="ctrl-btn" onclick="zoomNetwork(1.4)">➕ Zoom In</button>
+          <button class="ctrl-btn" onclick="zoomNetwork(0.65)">➖ Zoom Out</button>
+          <button class="ctrl-btn" style="border-color:#ffeaa7; color:#ffeaa7;" onclick="fitNetworkToView(450)">⛶ Fit Universe</button>
+          <button class="ctrl-btn" onclick="resetNetworkZoom()">⟲ 1:1 View</button>
+          <button class="ctrl-btn" id="btnToggleTiledInspector" onclick="toggleTiledInspector()">🗂️ Tiled Info</button>
+          <button class="ctrl-btn" id="btnToggleFullscreen" style="border-color:#58a6ff; color:#58a6ff;" onclick="toggleNetworkFullscreen()">⛶ Fullscreen</button>
+        </div>
+      </div>
+
+      <!-- Cluster Niche Pills -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin: 4px 0 6px 0; padding: 0 4px;">
+        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+          THEME TABS (MULTI-SELECT TO CORRELATE · DRAG BUBBLES TO SET PRIORITY)
+        </span>
+        <span style="font-size: 11px; font-family: monospace; color: #ffeaa7;">
+          CLICK PILLS TO COMBINE · DRAG TO RANK #1, #2...
+        </span>
+      </div>
+      <div class="cluster-pills" id="clusterPillsContainer"></div>
+
+      <!-- Canvas Container -->
+      <div class="network-canvas-wrap" id="canvasWrap">
+        <canvas id="networkCanvas"></canvas>
+
+        <!-- ASCII Topographic Legend -->
+        <div class="topo-legend">
+          <div style="font-weight: 700; color: #ffeaa7; margin-bottom: 3px;">
+            ::: ASCII TERRAIN ARCHITECTURE :::
+          </div>
+          <div class="legend-row">
+            <span style="color: #ffeaa7; font-weight: bold;">[◈] ┌─┐</span>
+            <span>Anchor Peak (ASCII Bezel & Core)</span>
+          </div>
+          <div class="legend-row">
+            <span style="color: #58a6ff;">(o) :·:</span>
+            <span>Core Ridge (ASCII Wireframe)</span>
+          </div>
+          <div class="legend-row">
+            <span style="color: #8b949e;">· · · +</span>
+            <span>Satellite Valley & Intersections</span>
+          </div>
+          <div class="legend-row">
+            <span style="color: #ffeaa7;">──▲──</span>
+            <span>Mountain Ridgeline (High Link)</span>
+          </div>
+          <div class="legend-row">
+            <span style="color: rgba(255, 234, 167, 0.6);">──~──</span>
+            <span>Valley Path (Mid/Low Link)</span>
+          </div>
+          <div class="legend-row">
+            <span style="color: #ffeaa7; font-weight: bold;">✦ ─── ✦</span>
+            <span>Thematic Correlation Bridge (Cross-Tab)</span>
+          </div>
+          <div class="legend-row" style="margin-top: 4px; padding-top: 4px; border-top: 1px dashed rgba(255,234,167,0.2); color: #8b949e;">
+            <span>ELEVATION:</span>
+            <span id="legendHeightMode" style="color: #ffeaa7; font-weight: bold;">CENTRALITY</span>
+          </div>
+          <div class="legend-row" style="margin-top: 3px; color: #58a6ff; font-size: 10px;">
+            <span>💡 DOUBLE-CLICK:</span>
+            <span style="color: #ffeaa7;">Open in new tab ↗</span>
+          </div>
+        </div>
+
+        <!-- Floating Node Card on Hover -->
+        <div class="node-tooltip-card" id="nodeTooltip">
+          <img src="" class="tooltip-thumb" id="tooltipImg" alt="Thumbnail">
+          <div class="tooltip-creator" id="tooltipCreator"></div>
+          <div class="tooltip-caption" id="tooltipCaption"></div>
+        </div>
+
+        <!-- Fullscreen Exit Floating Button -->
+        <button class="fullscreen-exit-btn" id="fullscreenExitBtn" onclick="toggleNetworkFullscreen()">✕ Exit Fullscreen (Esc)</button>
+
+        <!-- Tiled Info Inspector Dock -->
+        <div class="tiled-inspector-dock" id="tiledInspectorDock">
+          <div class="tiled-inspector-header">
+            <div class="tiled-inspector-title">
+              <span>🗂️ TILED NODE INSPECTOR</span>
+              <span class="tiled-count-pill" id="tiledCountPill">0 POSTS</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button class="tiled-filter-btn active" id="tiledFilterAll" onclick="setTiledInspectorFilter('all')">Active</button>
+              <button class="tiled-filter-btn" id="tiledFilterBridges" onclick="setTiledInspectorFilter('bridges')">✦ Bridges</button>
+              <button class="tiled-close-btn" onclick="toggleTiledInspector(false)">✕</button>
+            </div>
+          </div>
+          <div class="tiled-card-grid" id="tiledCardGrid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Geographic Map (visible only on Geo lens) -->
+    <div id="geoMapContainer"></div>
+
+    <!-- Active Similarity Filter Alert -->
+    <div class="active-similarity-banner" id="simBanner">
+      <span id="simBannerText">Showing posts closest to: <strong>...</strong></span>
+      <button class="clear-sim-btn" onclick="clearSimilarityFilter()">Show All Posts</button>
+    </div>
+
+    <!-- Controls & Search -->
+    <div class="controls-bar">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search captions, creators, music, places..." oninput="filterItems()">
+      
+      <div class="filter-pills">
+        <button class="pill-btn active" data-filter="All" onclick="setFormatFilter('All', this)">All</button>
+        <button class="pill-btn" data-filter="Reel" onclick="setFormatFilter('Reel', this)">Reels 🎬</button>
+        <button class="pill-btn" data-filter="Music" onclick="setSpecialFilter('Music', this)">Only Music 🎵</button>
+        <button class="pill-btn" data-filter="Geo" onclick="setSpecialFilter('Geo', this)">Only Places 📍</button>
+      </div>
+    </div>
+
+    <!-- Gallery Grid with Paginated Rendering -->
+    <div class="gallery-grid" id="galleryGrid"></div>
+  </div>
+</div>
+
+<script>
+  function safeSetText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = text;
+  }
+
+  let enrichedItems = [];
+  let currentLens = 'thematic';
+  let currentHeightMode = 'centrality'; // 'centrality' | 'chrono' | 'degree'
+  let chronoDirection = 'newest'; // 'newest' (Newest ➔ Oldest) | 'oldest' (Oldest ➔ Newest)
+  let currentScenario = 'balanced'; // 'balanced' | 'macro' | 'micro' | 'creators' | 'temporal'
+  let scenarioDriftSeed = 0;
+  let sparseAdjacency = []; // Array of top neighbor objects { target: j, sim: 0.85 } per item
+  let nodeDensities = new Float32Array(0);
+  let secondaryDigsite = null;
+  let similarityMatrix = [];
+  let clusters = [];
+  let currentFormatFilter = 'All';
+  let specialFilter = null;
+  let activeClusterFilters = new Set(); // Multi-tab selection: Set of active cluster IDs
+  let clusterPriorityOrder = []; // User-ordered cluster IDs for priority ranking
+  let draggedClusterId = null;
+  let activeSimilarityTarget = null;
+
+  function setClusteringScenario(scen) {
+    currentScenario = scen;
+    document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById(`scen-${scen}`);
+    if (btn) btn.classList.add('active');
+
+    const desc = document.getElementById('scenarioDescription');
+    const descriptions = {
+      balanced: 'Balanced 8–10 thematic archipelagos with cross-cluster bridges.',
+      macro: 'Broad umbrella kingdoms (4–5 macro clusters) synthesizing major disciplines.',
+      micro: 'Fine granular topic niches (14–18 deep clusters) isolating specialized aesthetics.',
+      creators: 'Creator Ecosystems: Communities gravitating around dominant creator voices.',
+      temporal: 'Chronological Strata: Temporal emergence epochs organized along history.'
+    };
+    if (desc) desc.innerText = descriptions[scen] || '';
+
+    if (enrichedItems.length > 0) {
+      clusterItems();
+      applyHeightModeToNodes();
+      buildNetworkGraph();
+      renderClusterPills();
+      filterItems();
+      showToast(`✦ Excavation Scenario: ${scen.toUpperCase()}`);
+    }
+  }
+
+  function driftClusteringScenario() {
+    scenarioDriftSeed++;
+    if (enrichedItems.length > 0) {
+      clusterItems();
+      applyHeightModeToNodes();
+      buildNetworkGraph();
+      renderClusterPills();
+      filterItems();
+      showToast(`🎲 Digsite Reshuffled (Drift Seed #${scenarioDriftSeed})`);
+    }
+  }
+
+  function setHeightMode(mode) {
+    currentHeightMode = mode;
+    document.querySelectorAll('.height-btn').forEach(b => b.classList.remove('active'));
+    if (mode === 'centrality') {
+      const b = document.getElementById('btnHeightCentrality');
+      if (b) b.classList.add('active');
+      safeSetText('legendHeightMode', 'CENTRALITY');
+    } else if (mode === 'chrono') {
+      const b = document.getElementById('btnHeightChrono');
+      if (b) b.classList.add('active');
+      safeSetText('legendHeightMode', chronoDirection === 'newest' ? 'CHRONO (NEW=PEAK)' : 'CHRONO (OLD=PEAK)');
+    } else if (mode === 'degree') {
+      const b = document.getElementById('btnHeightDegree');
+      if (b) b.classList.add('active');
+      safeSetText('legendHeightMode', 'DEGREE / LINKS');
+    }
+
+    if (enrichedItems.length > 0) {
+      applyHeightModeToNodes();
+      if (simulation) simulation.alpha(0.3).restart();
+      requestRender();
+    }
+  }
+
+  function toggleChronoDirection(event) {
+    if (event) event.stopPropagation();
+    chronoDirection = (chronoDirection === 'newest') ? 'oldest' : 'newest';
+    updateChronoDirectionUI();
+
+    if (currentLens === 'chrono') {
+      // Re-cluster into temporal strata adhering to direction, then update network and gallery
+      clusterItems();
+      applyHeightModeToNodes();
+      buildNetworkGraph();
+      renderClusterPills();
+      filterItems();
+    } else {
+      if (currentHeightMode === 'chrono') {
+        applyHeightModeToNodes();
+        if (simulation) simulation.alpha(0.3).restart();
+        requestRender();
+      }
+    }
+    showToast(`Timeline sorted: ${chronoDirection === 'newest' ? 'Newest ➔ Oldest' : 'Oldest ➔ Newest'}`);
+  }
+
+  function updateChronoDirectionUI() {
+    const btn = document.getElementById('btnChronoDir');
+    if (btn) {
+      btn.innerText = chronoDirection === 'newest' ? '⏳ Newest ➔ Oldest' : '⏳ Oldest ➔ Newest';
+      btn.title = `Currently: ${chronoDirection === 'newest' ? 'Newest to Oldest' : 'Oldest to Newest'}. Click to reverse order.`;
+    }
+    const heightLabel = document.getElementById('heightChronoLabel');
+    if (heightLabel) {
+      heightLabel.innerText = chronoDirection === 'newest' ? 'Newest=Peak' : 'Oldest=Peak';
+    }
+    const legendHeight = document.getElementById('legendHeightMode');
+    if (legendHeight && currentHeightMode === 'chrono') {
+      legendHeight.innerText = chronoDirection === 'newest' ? 'CHRONO (NEW=PEAK)' : 'CHRONO (OLD=PEAK)';
+    }
+    const desc = document.getElementById('lensDescription');
+    if (desc && currentLens === 'chrono') {
+      desc.innerText = `Temporal Corridor: Organizing posts along a chronological timeline (${chronoDirection === 'newest' ? 'Newest ➔ Oldest' : 'Oldest ➔ Newest'}). Elevation reflects temporal strata.`;
+    }
+  }
+
+  let currentFilteredItems = [];
+  let galleryPageSize = 24;
+  let currentVisibleCount = 24;
+
+  let simulation = null;
+  let networkNodes = [];
+  let networkLinks = [];
+  let linkIntersections = [];
+  let canvas = null;
+  let ctx = null;
+  let zoomBehavior = null;
+  let currentTransform = d3.zoomIdentity;
+  let hoveredNode = null;
+  let preloadedImages = new Map();
+  let renderRequested = false;
+  let leafletMap = null;
+  let mapMarkers = [];
+
+  const CLUSTER_COLORS = [
+    '#e1306c', '#388bfd', '#2ea043', '#f0883e', '#a371f7', 
+    '#d29922', '#56d364', '#79c0ff', '#ff7b72', '#ec6547',
+    '#ff6b81', '#2ed573', '#1e90ff', '#ffa502', '#3742fa', '#eccc68'
+  ];
+
+  const STOP_WORDS = new Set([
+    'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'aren',
+    'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by',
+    'can', 'couldn', 'd', 'did', 'didn', 'do', 'does', 'doesn', 'doing', 'don', 'down', 'during',
+    'each', 'few', 'for', 'from', 'further', 'had', 'hadn', 'has', 'hasn', 'have', 'haven', 'having',
+    'he', 'her', 'here', 'hers', 'herself', 'him', 'himself', 'his', 'how', 'i', 'if', 'in', 'into',
+    'is', 'isn', 'it', 'its', 'itself', 'just', 'll', 'm', 'ma', 'me', 'mightn', 'more', 'most',
+    'mustn', 'my', 'myself', 'needn', 'no', 'nor', 'not', 'now', 'o', 'of', 'off', 'on', 'once',
+    'only', 'or', 'other', 'our', 'ours', 'ourselves', 'out', 'over', 'own', 're', 's', 'same',
+    'shan', 'she', 'should', 'shouldn', 'so', 'some', 'such', 't', 'than', 'that', 'the', 'their',
+    'theirs', 'them', 'themselves', 'then', 'there', 'these', 'they', 'this', 'those', 'through',
+    'to', 'too', 'under', 'until', 'up', 've', 'very', 'was', 'wasn', 'we', 'were', 'weren', 'what',
+    'when', 'where', 'which', 'while', 'who', 'whom', 'why', 'will', 'with', 'won', 'wouldn', 'y',
+    'you', 'your', 'yours', 'yourself', 'yourselves', 'may', 'image', 'photo', 'video', 'reel',
+    // Generic Instagram, news, and filler terms that pollute thematic clustering:
+    'people', 'one', 'said', 'also', 'like', 'get', 'know', 'time', 'day', 'days', 'make', 'first',
+    'see', 'many', 'even', 'today', 'watch', 'link', 'bio', 'swipe', 'follow', 'check', 'post',
+    'posts', 'videos', 'reels', 'story', 'stories', 'share', 'comment', 'comments', 'read', 'full',
+    'via', 'part', 'still', 'back', 'two', 'three', 'four', 'take', 'come', 'went', 'go', 'going',
+    'much', 'well', 'way', 'around', 'since', 'another', 'last', 'years', 'year', 'show', 'shows',
+    'found', 'let', 'think', 'want', 'need', 'something', 'always', 'ever', 'never', 'tell', 'told',
+    'give', 'given', 'using', 'used', 'new', 'good', 'look', 'call', 'called', 'help', 'every',
+    'everyone', 'anyone', 'things', 'thing', 'really', 'actually', 'point', 'trying', 'started',
+    'keep', 'says', 'saying', 'put', 'end', 'start', 'next', 'lot', 'done', 'without', 'together',
+    'amid', 'including', 'made', 'take', 'takes', 'took', 'seen', 'already', 'almost', 'seems',
+    'across', 'along', 'behind', 'front', 'around', 'side', 'left', 'right', 'entire', 'whole',
+    'viral', 'trending', 'fyp', 'explore', 'explorepage', 'insta', 'news', 'update', 'breaking'
+  ]);
+
+  const MUSIC_KEYWORDS = new Set([
+    'strums', 'strum', 'guitar', 'acoustic', 'electric', 'bass', 'chords', 'tab', 'tabs', 'riff', 'riffs',
+    'solo', 'drums', 'drummer', 'piano', 'synth', 'synthesizer', 'vocals', 'singer', 'song', 'songs',
+    'track', 'tracks', 'album', 'band', 'bands', 'rock', 'metal', 'hiphop', 'rap', 'beat', 'beats',
+    'jazz', 'blues', 'pop', 'indie', 'punk', 'classical', 'melody', 'harmony', 'tempo', 'bpm', 'cover',
+    'covers', 'remix', 'mix', 'audio', 'sound', 'music', 'live', 'concert', 'gig', 'orchestra', 'violin'
+  ]);
+
+  const KNOWN_GEO_ENTITIES = {
+    'bangalore': [12.9716, 77.5946], 'bengaluru': [12.9716, 77.5946],
+    'mumbai': [19.0760, 72.8777], 'bombay': [19.0760, 72.8777],
+    'delhi': [28.6139, 77.2090], 'new delhi': [28.6139, 77.2090],
+    'goa': [15.2993, 74.1240], 'pune': [18.5204, 73.8567],
+    'chennai': [13.0827, 80.2707], 'hyderabad': [17.3850, 78.4867],
+    'kolkata': [22.5726, 88.3639], 'kerala': [10.8505, 76.2711],
+    'london': [51.5074, -0.1278], 'new york': [40.7128, -74.0060],
+    'nyc': [40.7128, -74.0060], 'paris': [48.8566, 2.3522],
+    'tokyo': [35.6762, 139.6503], 'berlin': [52.5200, 13.4050],
+    'los angeles': [34.0522, -118.2437], 'la': [34.0522, -118.2437],
+    'toronto': [43.6532, -79.3832], 'sydney': [-33.8688, 151.2093]
+  };
+
+  const GEO_KEYWORDS = new Set([
+    'street', 'cafe', 'coffee', 'restaurant', 'bar', 'club', 'studio', 'beach', 'mountain',
+    'hills', 'valley', 'hotel', 'resort', 'park', 'airport', 'metro', 'station', 'city', 'town', 'market'
+  ]);
+
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) handleFile(e.target.files[0]);
+  });
+
+  function parseJsonSafely(text) {
+    if (!text || typeof text !== 'string') throw new Error("Empty file content");
+    text = text.trim();
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    let cleaned = text.replace(/,\s*([\]\}])/g, '$1');
+
+    if (cleaned.startsWith('{') && !cleaned.endsWith('}') && !cleaned.startsWith('[')) {
+      cleaned = `[${cleaned.replace(/,\s*$/, '')}]`;
+    }
+
+    let parsed;
+    try { parsed = JSON.parse(cleaned); } catch (e) { parsed = JSON.parse(text); }
+
+    if (!Array.isArray(parsed)) {
+      if (Array.isArray(parsed.saved_collections)) parsed = parsed.saved_collections;
+      else if (Array.isArray(parsed.saved_posts)) parsed = parsed.saved_posts;
+      else if (Array.isArray(parsed.data)) parsed = parsed.data;
+      else if (Array.isArray(parsed.items)) parsed = parsed.items;
+      else if (typeof parsed === 'object') parsed = [parsed];
+    }
+
+    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("No items found in JSON array.");
+    return parsed;
+  }
+
+  function showProgress(pct, title, subtext) {
+    const overlay = document.getElementById('progressOverlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    if (title) safeSetText('progressTitle', title);
+    if (subtext) safeSetText('progressSubtext', subtext);
+    const filled = Math.min(20, Math.max(0, Math.round((pct / 100) * 20)));
+    const empty = 20 - filled;
+    safeSetText('progressBarText', '[' + '█'.repeat(filled) + '░'.repeat(empty) + `] ${Math.round(pct)}%`);
+  }
+
+  function hideProgress() {
+    const overlay = document.getElementById('progressOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function handleFile(file) {
+    showProgress(15, '::: EXCAVATING COLLECTION ARCHIVE :::', `Reading ${file.name}...`);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      showProgress(40, '::: PARSING EXCAVATED METADATA :::', 'Validating JSON tokens & attributes...');
+      setTimeout(() => {
+        let rawData;
+        try {
+          rawData = parseJsonSafely(e.target.result);
+        } catch (parseErr) {
+          hideProgress();
+          alert(`Could not parse JSON file:\n${parseErr.message}`);
+          return;
+        }
+        showProgress(70, '::: CONSTRUCTING SPARSE INVERTED INDEX :::', `Indexing ${Array.isArray(rawData) ? rawData.length : (rawData.items ? rawData.items.length : 0)} items...`);
+        setTimeout(() => {
+          try {
+            processData(rawData);
+            hideProgress();
+          } catch (processErr) {
+            hideProgress();
+            alert(`Error rendering collection: ${processErr.message}`);
+          }
+        }, 40);
+      }, 40);
+    };
+    reader.readAsText(file);
+  }
+
+  function extractCreator(url) {
+    if (!url) return 'unknown';
+    const match = url.match(/instagram\.com\/([^\/]+)\/(?:reel|p)\//i);
+    return match ? match[1] : 'unknown';
+  }
+
+  function detectMusicAttributes(caption, creator) {
+    const fullText = `${caption || ''} ${creator || ''}`.toLowerCase();
+    const tokens = fullText.replace(/[^\p{L}\p{N}]+/gu, ' ').split(/\s+/);
+    const matchedKeywords = tokens.filter(w => MUSIC_KEYWORDS.has(w));
+    
+    let parsedTrack = null;
+    if (caption) {
+      const pipeMatch = caption.match(/^([^|\n]+)\s*\|\s*([^|\n]+)/);
+      const dashMatch = caption.match(/^([^\-\n]+)\s*\-\s*([^\-\n]+)/);
+      if (pipeMatch) parsedTrack = `${pipeMatch[1].trim()} — "${pipeMatch[2].trim()}"`;
+      else if (dashMatch && dashMatch[1].length < 35 && dashMatch[2].length < 35) {
+        parsedTrack = `${dashMatch[1].trim()} — "${dashMatch[2].trim()}"`;
+      }
+    }
+
+    const isMusic = matchedKeywords.length >= 1 || !!parsedTrack || (creator && (creator.includes('strum') || creator.includes('music') || creator.includes('band')));
+    return { isMusic, parsedTrack, keywords: matchedKeywords };
+  }
+
+  function detectGeoAttributes(caption) {
+    if (!caption) return { isGeo: false, locationName: null, coords: null, keywords: [] };
+    const lower = caption.toLowerCase();
+    
+    for (const [cityName, coords] of Object.entries(KNOWN_GEO_ENTITIES)) {
+      const regex = new RegExp(`\\b${cityName}\\b`, 'i');
+      if (regex.test(lower)) {
+        return { isGeo: true, locationName: cityName.toUpperCase(), coords, keywords: [cityName] };
+      }
+    }
+
+    const tokens = lower.replace(/[^\p{L}\p{N}]+/gu, ' ').split(/\s+/);
+    const matchedGeo = tokens.filter(w => GEO_KEYWORDS.has(w));
+    if (matchedGeo.length > 0) {
+      return { isGeo: true, locationName: matchedGeo[0].toUpperCase(), coords: null, keywords: matchedGeo };
+    }
+    return { isGeo: false, locationName: null, coords: null, keywords: [] };
+  }
+
+  function processData(items) {
+    let musicTotal = 0;
+    let geoTotal = 0;
+
+    // Handle .digsite.json archive unwrap
+    if (items && !Array.isArray(items) && Array.isArray(items.items)) {
+      items = items.items;
+    }
+
+    enrichedItems = items.filter(i => i && typeof i === 'object').map((item, idx) => {
+      const creator = extractCreator(item.url);
+      const musicData = detectMusicAttributes(item.captionSummary, creator);
+      const geoData = detectGeoAttributes(item.captionSummary);
+
+      if (musicData.isMusic) musicTotal++;
+      if (geoData.isGeo) geoTotal++;
+
+      if (item.thumbnailUrl && !preloadedImages.has(item.shortcode)) {
+        const img = new Image();
+        img.src = item.thumbnailUrl;
+        img.crossOrigin = "anonymous";
+        preloadedImages.set(item.shortcode, img);
+      }
+
+      // Harvested / Saved Timestamp
+      let timestamp = 0;
+      let dateFormatted = 'Recently Saved';
+      const rawDate = item.harvestedAt || item.savedAt || item.timestamp || item.takenAt;
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) {
+          timestamp = d.getTime();
+          dateFormatted = d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+      }
+      if (!timestamp) {
+        // Fallback: items at top of list are newest saved on Instagram
+        timestamp = Date.now() - idx * 60000;
+      }
+
+      return {
+        ...item,
+        id: idx,
+        creator: creator || 'unknown',
+        contentType: item.contentType || 'Post',
+        captionSummary: item.captionSummary || '',
+        musicData,
+        geoData,
+        timestamp,
+        dateFormatted
+      };
+    });
+
+    const total = enrichedItems.length;
+    safeSetText('statTotal', total);
+    safeSetText('statMusicCount', musicTotal);
+    safeSetText('statGeoCount', geoTotal);
+
+    const creatorCounts = {};
+    enrichedItems.forEach(i => creatorCounts[i.creator] = (creatorCounts[i.creator] || 0) + 1);
+    const sortedCreators = Object.entries(creatorCounts).sort((a,b) => b[1] - a[1]);
+    safeSetText('statCreators', Object.keys(creatorCounts).length);
+    if (sortedCreators.length > 0) {
+      safeSetText('statTopCreator', `Top: @${sortedCreators[0][0]} (${sortedCreators[0][1]} saves)`);
+    }
+
+    const reelsCount = enrichedItems.filter(i => i.contentType === 'Reel').length;
+    const reelsPercent = total > 0 ? Math.round((reelsCount / total) * 100) : 0;
+    safeSetText('statFormatSplit', `${reelsPercent}% Reels`);
+    safeSetText('statFormatDetails', `${reelsCount} Reels, ${total - reelsCount} Posts`);
+
+    const dropElem = document.getElementById('dropZone');
+    if (dropElem) dropElem.style.display = 'none';
+    const dashElem = document.getElementById('dashboardContent');
+    if (dashElem) dashElem.style.display = 'block';
+    const exportElem = document.getElementById('exportCsvBtn');
+    if (exportElem) exportElem.style.display = 'block';
+    const btnArchive = document.getElementById('btnExportArchive');
+    if (btnArchive) btnArchive.style.display = 'block';
+    const btnCompare = document.getElementById('btnOpenCompare');
+    if (btnCompare) btnCompare.style.display = 'block';
+
+    initNetworkCanvas();
+    recalculateProximity();
+  }
+
+  function switchLens(lens) {
+    currentLens = lens;
+    activeClusterFilters.clear();
+    activeSimilarityTarget = null;
+    const banner = document.getElementById('simBanner');
+    if (banner) banner.style.display = 'none';
+
+    document.querySelectorAll('.lens-tab').forEach(b => b.className = 'lens-tab');
+    const desc = document.getElementById('lensDescription');
+    const geoMap = document.getElementById('geoMapContainer');
+
+    const chronoDirBtn = document.getElementById('btnChronoDir');
+    if (chronoDirBtn) {
+      chronoDirBtn.style.display = (lens === 'chrono') ? 'inline-flex' : 'none';
+      if (lens === 'chrono') updateChronoDirectionUI();
+    }
+
+    if (lens === 'thematic') {
+      const tab = document.getElementById('tabThematic');
+      if (tab) tab.className = 'lens-tab active-thematic';
+      if (desc) desc.innerText = "Clustering posts by overall creative vocabulary, caption topics, and format.";
+      if (geoMap) geoMap.style.display = 'none';
+      safeSetText('networkTitleText', '::: ASCII THEMATIC TERRAIN & NETWORK INTERSECTIONS :::');
+    } else if (lens === 'music') {
+      const tab = document.getElementById('tabMusic');
+      if (tab) tab.className = 'lens-tab active-music';
+      if (desc) desc.innerText = "Analyzing musical proximity: song titles, artists, instruments (guitars, drums), and genres.";
+      if (geoMap) geoMap.style.display = 'none';
+      safeSetText('networkTitleText', '::: ASCII MUSICAL SOUNDSCAPE & RIDGELINES :::');
+    } else if (lens === 'geo') {
+      const tab = document.getElementById('tabGeo');
+      if (tab) tab.className = 'lens-tab active-geo';
+      if (desc) desc.innerText = "Exploring geographic proximity: cities, venues, travel locations, and map distribution.";
+      if (geoMap) {
+        geoMap.style.display = 'block';
+        setTimeout(initOrUpdateMap, 100);
+      }
+      safeSetText('networkTitleText', '::: ASCII GEOGRAPHIC TOPOGRAPHY & PLACES :::');
+    } else if (lens === 'chrono') {
+      const tab = document.getElementById('tabChrono');
+      if (tab) tab.className = 'lens-tab active-chrono';
+      if (desc) desc.innerText = `Temporal Corridor: Organizing posts along a chronological timeline (${chronoDirection === 'newest' ? 'Newest ➔ Oldest' : 'Oldest ➔ Newest'}). Elevation reflects temporal strata.`;
+      if (geoMap) geoMap.style.display = 'none';
+      safeSetText('networkTitleText', `::: ASCII CHRONOLOGICAL TIMELINE CORRIDOR [${chronoDirection === 'newest' ? 'NEWEST ➔ OLDEST' : 'OLDEST ➔ NEWEST'}] :::`);
+      // Proactively switch height mode to chrono for immediate visual payoff
+      setHeightMode('chrono');
+    }
+
+    recalculateProximity();
+  }
+
+  function recalculateProximity() {
+    const N = enrichedItems.length;
+    if (N === 0) return;
+
+    enrichedItems.forEach(item => {
+      const rawText = item.captionSummary || '';
+      let text = rawText.toLowerCase();
+      let extraTokens = [];
+
+      // Extract hashtags with 3x frequency boost (primary thematic signals)
+      const hashtagMatches = rawText.match(/#([\p{L}\p{N}_]+)/gu) || [];
+      const cleanedHashtags = hashtagMatches
+        .map(h => h.replace(/^#/, '').toLowerCase().replace(/_/g, ''))
+        .filter(h => h.length > 2 && !STOP_WORDS.has(h));
+      
+      cleanedHashtags.forEach(tag => {
+        extraTokens.push(tag, tag, tag);
+      });
+
+      // Extract creator identity token
+      if (item.creator) {
+        const creatorToken = item.creator.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (creatorToken.length > 3 && !STOP_WORDS.has(creatorToken)) {
+          extraTokens.push(creatorToken);
+        }
+      }
+
+      if (currentLens === 'music') {
+        if (item.musicData.parsedTrack) text += ` ${item.musicData.parsedTrack.toLowerCase()}`;
+        extraTokens = extraTokens.concat(item.musicData.keywords, (item.creator && item.creator.includes('strum')) ? ['guitar', 'strums', 'acoustic'] : []);
+      } else if (currentLens === 'geo') {
+        extraTokens = extraTokens.concat(item.geoData.keywords);
+        if (item.geoData.locationName) extraTokens.push(item.geoData.locationName.toLowerCase());
+      }
+
+      const allTokens = text
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !STOP_WORDS.has(w))
+        .concat(extraTokens);
+
+      item.tokens = allTokens;
+    });
+
+    computeTFIDF();
+    computeSparseSimilarities();
+    clusterItems();
+
+    buildNetworkGraph();
+    renderClusterPills();
+    filterItems();
+  }
+
+  function getCosineSim(itemA, itemB) {
+    if (!itemA || !itemB) return 0;
+    const vecA = itemA.tfidf;
+    const vecB = itemB.tfidf;
+    if (!vecA || !vecB) return 0;
+    let dot = 0;
+    const keysA = Object.keys(vecA);
+    const keysB = Object.keys(vecB);
+    const [small, big] = keysA.length < keysB.length ? [vecA, vecB] : [vecB, vecA];
+    for (const word in small) {
+      if (big[word]) dot += small[word] * big[word];
+    }
+    const norm = (itemA.norm || 1) * (itemB.norm || 1);
+    return norm > 0 ? (dot / norm) : 0;
+  }
+
+  function getPairSimilarity(i, j) {
+    if (i === j) return 1.0;
+    if (sparseAdjacency[i]) {
+      const f = sparseAdjacency[i].find(e => e.target === j);
+      if (f) return f.sim;
+    }
+    if (sparseAdjacency[j]) {
+      const f = sparseAdjacency[j].find(e => e.target === i);
+      if (f) return f.sim;
+    }
+    return getCosineSim(enrichedItems[i], enrichedItems[j]);
+  }
+
+  function computeTFIDF() {
+    const N = enrichedItems.length;
+    const docFrequencies = {};
+
+    enrichedItems.forEach(item => {
+      const uniqueWords = new Set(item.tokens);
+      uniqueWords.forEach(w => { docFrequencies[w] = (docFrequencies[w] || 0) + 1; });
+    });
+
+    enrichedItems.forEach(item => {
+      const tf = {};
+      item.tokens.forEach(w => tf[w] = (tf[w] || 0) + 1);
+
+      item.tfidf = {};
+      let normSq = 0;
+      for (const [w, count] of Object.entries(tf)) {
+        const idf = Math.log((N + 1) / ((docFrequencies[w] || 0) + 1)) + 1;
+        const val = count * idf;
+        item.tfidf[w] = val;
+        normSq += val * val;
+      }
+      item.norm = Math.sqrt(normSq) || 1;
+    });
+  }
+
+  function computeSparseSimilarities() {
+    const N = enrichedItems.length;
+    if (N === 0) return;
+
+    // Inverted Index: word -> postings list [{ id, w }]
+    const postings = new Map();
+    for (let i = 0; i < N; i++) {
+      const tfidf = enrichedItems[i].tfidf;
+      for (const w in tfidf) {
+        let list = postings.get(w);
+        if (!list) {
+          list = [];
+          postings.set(w, list);
+        }
+        list.push({ id: i, w: tfidf[w] });
+      }
+    }
+
+    sparseAdjacency = Array.from({ length: N }, () => []);
+    nodeDensities = new Float32Array(N);
+
+    // Keep top 6 nearest neighbors per node for network linking
+    const maxNeighbors = 6;
+
+    for (let i = 0; i < N; i++) {
+      const itemA = enrichedItems[i];
+      const normA = itemA.norm || 1;
+      const candidateDots = new Map();
+
+      for (const word in itemA.tfidf) {
+        const list = postings.get(word);
+        if (!list) continue;
+        const wA = itemA.tfidf[word];
+        for (let k = 0; k < list.length; k++) {
+          const neighborId = list[k].id;
+          if (neighborId === i) continue;
+          candidateDots.set(neighborId, (candidateDots.get(neighborId) || 0) + (wA * list[k].w));
+        }
+      }
+
+      const scored = [];
+      for (const [candId, dot] of candidateDots.entries()) {
+        const normB = enrichedItems[candId].norm || 1;
+        const sim = dot / (normA * normB);
+        if (sim > 0.03) {
+          scored.push({ target: candId, sim });
+        }
+      }
+
+      scored.sort((a, b) => b.sim - a.sim);
+      const topNeighbors = scored.slice(0, maxNeighbors);
+      sparseAdjacency[i] = topNeighbors;
+
+      let sumSim = 0;
+      topNeighbors.forEach(n => sumSim += n.sim);
+      nodeDensities[i] = sumSim;
+    }
+  }
+
+  // DOMAIN DICTIONARIES FOR SPECIALIZED CREATIVE & LIFESTYLE THEMES (EXCLUDING GEOPOLITICAL/WAR/CONFLICT TABS)
+  const THEMATIC_DOMAINS = [
+    {
+      id: 'visual_arts',
+      terms: new Set([
+        'art', 'artist', 'painting', 'sketch', 'illustration', 'design', 'drawing', 'gallery',
+        'sculpture', 'graphic', 'typography', 'creative', 'exhibition', 'canvas'
+      ]),
+      minMatches: 2
+    },
+    {
+      id: 'architecture',
+      terms: new Set([
+        'architecture', 'building', 'interior', 'interiordesign', 'facade', 'structure', 'urban',
+        'minimalism', 'concrete', 'brutalism', 'architect', 'spatial'
+      ]),
+      minMatches: 2
+    },
+    {
+      id: 'surveillance',
+      terms: new Set([
+        'surveillance', 'spyware', 'candiru', 'palantir', 'pegasus', 'cyber', 'satellite', 'datacenter',
+        'osint', 'algorithm', 'privacy', 'telecom', 'tracking', 'intercept', 'intelligence'
+      ]),
+      minMatches: 2
+    },
+    {
+      id: 'governance',
+      terms: new Set([
+        'election', 'elections', 'voter', 'voters', 'voting', 'parliament', 'bjp', 'congress',
+        'constitution', 'commission', 'government', 'minister', 'gyanesh', 'evm', 'nationalize',
+        'canceldebts', 'politics', 'democracy'
+      ]),
+      minMatches: 2
+    },
+    {
+      id: 'folk_music',
+      terms: new Set([
+        'folk', 'traditional', 'heritage', 'indigenous', 'culture', 'instrument', 'nanjiamma',
+        'malayalam', 'kerala', 'keralam', 'attapady', 'acoustic', 'violin'
+      ]),
+      minMatches: 2
+    },
+    {
+      id: 'cinema',
+      terms: new Set([
+        'cinema', 'film', 'movie', 'director', 'actor', 'theatre', 'animation', 'scifi', 'marvel',
+        'hollywood', 'screenplay', 'cinematography'
+      ]),
+      minMatches: 2
+    },
+    {
+      id: 'mindset',
+      terms: new Set([
+        'mindset', 'discipline', 'minimalism', 'phoneaddiction', 'habits', 'psychology',
+        'mentalhealth', 'routine', 'attention', 'guerrillamindset', 'digitalminimalism'
+      ]),
+      minMatches: 2
+    }
+  ];
+
+  function clusterItems() {
+    const N = enrichedItems.length;
+    if (N === 0) { clusters = []; return; }
+
+    // 1. SCENARIO: TEMPORAL EPOCH STRATA
+    if (currentScenario === 'temporal' || currentLens === 'chrono') {
+      const sortedByTime = [...enrichedItems].sort((a, b) => {
+        return (chronoDirection === 'newest') 
+          ? (b.timestamp - a.timestamp) 
+          : (a.timestamp - b.timestamp);
+      });
+
+      const numEpochs = Math.min(Math.max(3, Math.floor(N / 8)), 5);
+      const epochSize = Math.ceil(N / numEpochs);
+
+      const rawClusters = [];
+      const strataNamesNewest = ['Recent Excavation', 'Upper Strata', 'Mid Strata', 'Deep Bedrock', 'Ancient Archive'];
+      const strataNamesOldest = ['Ancient Archive', 'Deep Bedrock', 'Mid Strata', 'Upper Strata', 'Recent Excavation'];
+      const activeNames = (chronoDirection === 'newest') ? strataNamesNewest : strataNamesOldest;
+
+      for (let k = 0; k < numEpochs; k++) {
+        const slice = sortedByTime.slice(k * epochSize, (k + 1) * epochSize);
+        if (slice.length === 0) continue;
+
+        slice.forEach(item => { item.cluster = k; });
+
+        const firstDate = slice[0].dateFormatted ? slice[0].dateFormatted.split(',')[0] : '';
+        const lastDate = slice[slice.length - 1].dateFormatted ? slice[slice.length - 1].dateFormatted.split(',')[0] : '';
+        const dateSpan = (firstDate === lastDate || !lastDate) ? firstDate : `${firstDate}–${lastDate}`;
+        const name = activeNames[k] || `Strata ${k + 1}`;
+
+        rawClusters.push({
+          id: k,
+          label: `⏳ ${name} (${slice.length}) · ${dateSpan}`,
+          color: CLUSTER_COLORS[k % CLUSTER_COLORS.length],
+          count: slice.length
+        });
+      }
+
+      clusters = rawClusters;
+      clusterPriorityOrder = clusters.map(c => c.id);
+      return;
+    }
+
+    // 2. SCENARIO: CREATOR ECOSYSTEMS
+    if (currentScenario === 'creators') {
+      const creatorCounts = {};
+      enrichedItems.forEach(i => {
+        if (i.creator && i.creator !== 'unknown') {
+          creatorCounts[i.creator] = (creatorCounts[i.creator] || 0) + 1;
+        }
+      });
+      const topCreators = Object.entries(creatorCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, Math.min(10, Math.max(4, Math.floor(N / 80))));
+
+      if (topCreators.length >= 2) {
+        const creatorMap = new Map();
+        topCreators.forEach(([cName], idx) => creatorMap.set(cName, idx));
+
+        const clusterBuckets = Array.from({ length: topCreators.length + 1 }, () => []);
+        enrichedItems.forEach(item => {
+          if (creatorMap.has(item.creator)) {
+            const cId = creatorMap.get(item.creator);
+            item.cluster = cId;
+            clusterBuckets[cId].push(item.id);
+          } else {
+            let bestC = topCreators.length;
+            let maxSim = 0;
+            topCreators.forEach(([cName], idx) => {
+              if (item.tokens.includes(cName.toLowerCase())) {
+                bestC = idx;
+                maxSim = 1.0;
+              }
+            });
+            item.cluster = bestC;
+            clusterBuckets[bestC].push(item.id);
+          }
+        });
+
+        const rawClusters = topCreators.map(([cName], idx) => ({
+          id: idx,
+          label: `@${cName} (${clusterBuckets[idx].length})`,
+          color: CLUSTER_COLORS[idx % CLUSTER_COLORS.length],
+          count: clusterBuckets[idx].length
+        }));
+
+        if (clusterBuckets[topCreators.length].length > 0) {
+          rawClusters.push({
+            id: topCreators.length,
+            label: `Independent Creators (${clusterBuckets[topCreators.length].length})`,
+            color: CLUSTER_COLORS[topCreators.length % CLUSTER_COLORS.length],
+            count: clusterBuckets[topCreators.length].length
+          });
+        }
+
+        clusters = rawClusters.filter(c => c.count > 0);
+        clusterPriorityOrder = clusters.map(c => c.id);
+        return;
+      }
+    }
+
+    // 3. THEMATIC SCENARIOS (MACRO, MICRO, BALANCED)
+    let numClusters = 8;
+    if (currentScenario === 'macro') {
+      numClusters = Math.min(5, Math.max(3, Math.floor(N / 120)));
+    } else if (currentScenario === 'micro') {
+      numClusters = Math.min(18, Math.max(12, Math.floor(N / 25)));
+    } else {
+      // Balanced strata
+      if (N >= 2500) numClusters = 12;
+      else if (N >= 800) numClusters = 10;
+      else if (N >= 180) numClusters = 8;
+      else numClusters = Math.min(Math.max(2, Math.floor(N / 5)), 6);
+    }
+
+    const density = (nodeDensities && nodeDensities.length === N) ? nodeDensities : new Float32Array(N);
+    const centroids = [];
+
+    // Anchor seeding for specialized lifestyle/tech themes
+    THEMATIC_DOMAINS.forEach(domain => {
+      if (centroids.length >= Math.floor(numClusters * 0.65)) return;
+
+      const domainCandidates = [];
+      enrichedItems.forEach(item => {
+        let domainHits = 0;
+        item.tokens.forEach(tok => {
+          if (domain.terms.has(tok)) domainHits++;
+        });
+        if (domainHits > 0) {
+          domainCandidates.push({ id: item.id, hits: domainHits, density: density[item.id] || 0 });
+        }
+      });
+
+      if (domainCandidates.length >= domain.minMatches) {
+        domainCandidates.sort((a, b) => (b.hits * 4.0 + Math.log1p(b.density)) - (a.hits * 4.0 + Math.log1p(a.density)));
+        for (const cand of domainCandidates) {
+          if (!centroids.includes(cand.id)) {
+            centroids.push(cand.id);
+            break;
+          }
+        }
+      }
+    });
+
+    if (centroids.length === 0) {
+      let bestSeed0 = scenarioDriftSeed % N;
+      let maxD0 = -1;
+      for (let i = 0; i < N; i++) {
+        const cIdx = (i + scenarioDriftSeed * 37) % N;
+        if (density[cIdx] > maxD0) {
+          maxD0 = density[cIdx];
+          bestSeed0 = cIdx;
+        }
+      }
+      centroids.push(bestSeed0);
+    }
+
+    // Farthest-point density seeding (k-means++ style with drift perturbation)
+    while (centroids.length < numClusters && centroids.length < N) {
+      let bestCandidate = -1;
+      let maxScore = -1;
+      const step = N > 1500 ? Math.ceil(N / 600) : 1;
+      for (let i = 0; i < N; i += step) {
+        const cIdx = (i + scenarioDriftSeed * 19) % N;
+        if (centroids.includes(cIdx)) continue;
+        let minDist = 1.0;
+        for (let c = 0; c < centroids.length; c++) {
+          const sim = getCosineSim(enrichedItems[cIdx], enrichedItems[centroids[c]]);
+          const dist = 1 - sim;
+          if (dist < minDist) minDist = dist;
+        }
+        const score = minDist * (1 + Math.log1p(density[cIdx]));
+        if (score > maxScore) {
+          maxScore = score;
+          bestCandidate = cIdx;
+        }
+      }
+      if (bestCandidate !== -1) centroids.push(bestCandidate);
+      else break;
+    }
+
+    // Iterative k-medoids refinement (2 iterations)
+    const MAX_ITERS = 2;
+    for (let iter = 0; iter < MAX_ITERS; iter++) {
+      const clusterBuckets = Array.from({ length: centroids.length }, () => []);
+
+      enrichedItems.forEach(item => {
+        let bestCluster = -1;
+        let maxSim = 0.001;
+        for (let k = 0; k < centroids.length; k++) {
+          const sim = getCosineSim(item, enrichedItems[centroids[k]]);
+          if (sim > maxSim) {
+            maxSim = sim;
+            bestCluster = k;
+          }
+        }
+
+        if (bestCluster === -1) {
+          let minSize = Infinity;
+          let minK = 0;
+          for (let k = 0; k < centroids.length; k++) {
+            if (clusterBuckets[k].length < minSize) {
+              minSize = clusterBuckets[k].length;
+              minK = k;
+            }
+          }
+          bestCluster = minK;
+        }
+
+        item.cluster = bestCluster;
+        clusterBuckets[bestCluster].push(item.id);
+      });
+
+      if (iter < MAX_ITERS - 1) {
+        for (let k = 0; k < centroids.length; k++) {
+          const bucket = clusterBuckets[k];
+          if (bucket.length <= 1) continue;
+          let bestMedoid = centroids[k];
+          let maxInternalSim = -1;
+          const sample = bucket.length > 60
+            ? bucket.filter((_, idx) => idx % Math.ceil(bucket.length / 50) === 0)
+            : bucket;
+
+          for (const cand of sample) {
+            let sumSim = 0;
+            for (const other of sample) {
+              if (cand !== other) sumSim += getCosineSim(enrichedItems[cand], enrichedItems[other]);
+            }
+            if (sumSim > maxInternalSim) {
+              maxInternalSim = sumSim;
+              bestMedoid = cand;
+            }
+          }
+          centroids[k] = bestMedoid;
+        }
+      }
+    }
+
+    // 4. CONTRASTIVE TOPIC LABELING
+    const clusterWordScores = Array.from({ length: centroids.length }, () => ({}));
+    const globalWordClusterCount = {};
+
+    enrichedItems.forEach(item => {
+      const c = item.cluster;
+      if (c >= 0 && c < clusterWordScores.length) {
+        for (const [w, score] of Object.entries(item.tfidf)) {
+          clusterWordScores[c][w] = (clusterWordScores[c][w] || 0) + score;
+        }
+      }
+    });
+
+    for (let k = 0; k < centroids.length; k++) {
+      for (const w in clusterWordScores[k]) {
+        globalWordClusterCount[w] = (globalWordClusterCount[w] || 0) + 1;
+      }
+    }
+
+    const rawClusters = Array.from({ length: centroids.length }, (_, k) => {
+      const itemsInCluster = enrichedItems.filter(i => i.cluster === k);
+      const scores = clusterWordScores[k];
+
+      const topWords = Object.entries(scores)
+        .filter(([w]) => w.length > 2 && !STOP_WORDS.has(w) && !/^[0-9]+$/.test(w) && !/^[a-z]+[0-9]+[a-z0-9]*$/.test(w))
+        .map(([w, rawScore]) => {
+          const ubiquity = globalWordClusterCount[w] || 1;
+          const distinctiveness = rawScore / (1 + (ubiquity - 1) * 1.8);
+          return [w, distinctiveness];
+        })
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(w => w[0]);
+
+      let prefix = currentLens === 'music' ? '🎵 ' : (currentLens === 'geo' ? '📍 ' : '');
+      return {
+        id: k,
+        label: topWords.length > 0 ? prefix + topWords.join(', ') : `Topic ${k + 1}`,
+        color: CLUSTER_COLORS[k % CLUSTER_COLORS.length],
+        count: itemsInCluster.length
+      };
+    });
+
+    // Prune any empty clusters and remap IDs cleanly
+    const activeClusters = rawClusters.filter(c => c.count > 0);
+    const remap = new Map();
+    activeClusters.forEach((c, newIdx) => {
+      remap.set(c.id, newIdx);
+      c.id = newIdx;
+      c.color = CLUSTER_COLORS[newIdx % CLUSTER_COLORS.length];
+    });
+
+    enrichedItems.forEach(item => {
+      item.cluster = remap.has(item.cluster) ? remap.get(item.cluster) : 0;
+    });
+
+    clusters = activeClusters;
+    clusterPriorityOrder = clusters.map(c => c.id);
+  }
+
+  // LINE-LINE INTERSECTION DETECTOR
+  function findLineIntersection(p1, p2, p3, p4) {
+    const d = (p2.x - p1.x) * (p4.y - p3.y) - (p2.y - p1.y) * (p4.x - p3.x);
+    if (Math.abs(d) < 0.001) return null;
+    const u = ((p3.x - p1.x) * (p4.y - p3.y) - (p3.y - p1.y) * (p4.x - p3.x)) / d;
+    const v = ((p3.x - p1.x) * (p2.y - p1.y) - (p3.y - p1.y) * (p2.x - p1.x)) / d;
+    if (u > 0.08 && u < 0.92 && v > 0.08 && v < 0.92) {
+      return {
+        x: p1.x + u * (p2.x - p1.x),
+        y: p1.y + u * (p2.y - p1.y)
+      };
+    }
+    return null;
+  }
+
+  function buildNetworkGraph() {
+    const N = enrichedItems.length;
+
+    const creatorCounts = {};
+    enrichedItems.forEach(i => creatorCounts[i.creator] = (creatorCounts[i.creator] || 0) + 1);
+
+    const centralityScores = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      let sum = 0;
+      let count = 0;
+      if (sparseAdjacency[i]) {
+        for (let k = 0; k < sparseAdjacency[i].length; k++) {
+          const neighbor = sparseAdjacency[i][k];
+          if (enrichedItems[neighbor.target].cluster === enrichedItems[i].cluster) {
+            sum += neighbor.sim;
+            count++;
+          }
+        }
+      }
+      const avgSim = count > 0 ? (sum / count) : 0.2;
+      const creatorWeight = Math.min((creatorCounts[enrichedItems[i].creator] || 1) / 5, 1);
+      centralityScores[i] = avgSim * 0.7 + creatorWeight * 0.3;
+    }
+
+    const minC = Math.min(...centralityScores) || 0.1;
+    const maxC = Math.max(...centralityScores) || 1.0;
+
+    networkNodes = enrichedItems.map((item, i) => {
+      const c = clusters.find(cl => cl.id === item.cluster);
+      return {
+        ...item,
+        color: c ? c.color : '#e1306c',
+        centralityScore: centralityScores[i],
+        elevation: 0.5,
+        baseRadius: 20,
+        tier: 'ridge'
+      };
+    });
+
+    networkLinks = [];
+    const addedLinkPairs = new Set();
+    for (let i = 0; i < N; i++) {
+      if (sparseAdjacency[i]) {
+        sparseAdjacency[i].slice(0, 2).forEach(neighbor => {
+          if (neighbor.sim > 0.04) {
+            const minId = Math.min(i, neighbor.target);
+            const maxId = Math.max(i, neighbor.target);
+            const pairKey = `${minId}_${maxId}`;
+            if (!addedLinkPairs.has(pairKey)) {
+              addedLinkPairs.add(pairKey);
+              networkLinks.push({
+                source: i,
+                target: neighbor.target,
+                weight: neighbor.sim
+              });
+            }
+          }
+        });
+      }
+    }
+
+    const wrap = document.getElementById('canvasWrap');
+    const width = wrap.clientWidth || 900;
+    const height = wrap.clientHeight || 620;
+
+    // Calculate orbital target positions per cluster (orbital biomes to disperse clusters)
+    const K = Math.max(1, clusters.length);
+    const orbitR = Math.min(width, height) * 0.40;
+    const clusterCenters = {};
+    clusters.forEach((c, idx) => {
+      const angle = (idx / K) * 2 * Math.PI - (Math.PI / 2);
+      clusterCenters[c.id] = {
+        x: (width / 2) + Math.cos(angle) * orbitR,
+        y: (height / 2) + Math.sin(angle) * orbitR
+      };
+    });
+
+    // CHRONOLOGICAL TIMELINE CORRIDOR LAYOUT:
+    if (currentLens === 'chrono') {
+      const timeSorted = [...networkNodes].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      
+      // 1. Add chronological spine links connecting consecutive temporal posts
+      for (let k = 0; k < timeSorted.length - 1; k++) {
+        networkLinks.push({
+          source: timeSorted[k].id,
+          target: timeSorted[k + 1].id,
+          weight: 0.88,
+          isChronoSpine: true
+        });
+      }
+
+      // 2. Compute timeline corridor anchor coordinates (targetX, targetY)
+      const minT = timeSorted[0]?.timestamp || 0;
+      const maxT = timeSorted[timeSorted.length - 1]?.timestamp || 1;
+      const timeSpan = maxT - minT || 1;
+      const padX = 140;
+      const corridorWidth = Math.max(width * 1.4, N * 42);
+
+      timeSorted.forEach((node, rank) => {
+        const rankRatio = rank / Math.max(1, N - 1);
+        const timeRatio = ((node.timestamp || 0) - minT) / timeSpan;
+        const tProgress = rankRatio * 0.65 + timeRatio * 0.35;
+        const progress = (chronoDirection === 'newest') ? (1 - tProgress) : tProgress;
+        
+        node.targetX = padX + progress * (corridorWidth - 2 * padX);
+        const wave = Math.sin(progress * Math.PI * 4) * 45;
+        const clusterOffset = ((node.cluster % 4) - 1.5) * 35;
+        node.targetY = (height / 2) + wave + clusterOffset;
+
+        if (!node.x) {
+          node.x = node.targetX;
+          node.y = node.targetY;
+        }
+      });
+    }
+
+    applyHeightModeToNodes();
+
+    if (simulation) simulation.stop();
+
+    if (currentLens === 'chrono') {
+      // Timeline Corridor Force Simulation (arranges along horizontal timeline)
+      simulation = d3.forceSimulation(networkNodes)
+        .alphaDecay(0.04)
+        .velocityDecay(0.35)
+        .force("link", d3.forceLink(networkLinks).id(d => d.id).distance(d => d.isChronoSpine ? 35 : 90).strength(d => d.isChronoSpine ? 0.9 : 0.2))
+        .force("x", d3.forceX(d => d.targetX).strength(0.92))
+        .force("y", d3.forceY(d => d.targetY || height / 2).strength(0.60))
+        .force("collide", d3.forceCollide().radius(d => d.baseRadius + 10))
+        .on("tick", requestRender)
+        .on("end", () => {
+          calculateIntersections();
+          requestRender();
+          fitNetworkToView(600);
+        });
+    } else {
+      // Standard Thematic / Radial Force Simulation with Orbital Cluster Biomes
+      simulation = d3.forceSimulation(networkNodes)
+        .alphaDecay(0.04)
+        .velocityDecay(0.35)
+        .force("link", d3.forceLink(networkLinks).id(d => d.id).distance(d => 110 * (1 - d.weight * 0.4)).strength(d => d.weight * 0.8))
+        .force("charge", d3.forceManyBody().strength(d => (N > 1000 ? -70 : -140) - d.elevation * 50))
+        .force("clusterX", d3.forceX(d => (clusterCenters[d.cluster] ? clusterCenters[d.cluster].x : width / 2)).strength(0.38))
+        .force("clusterY", d3.forceY(d => (clusterCenters[d.cluster] ? clusterCenters[d.cluster].y : height / 2)).strength(0.38))
+        .force("center", d3.forceCenter(width / 2, height / 2).strength(0.08))
+        .force("collide", d3.forceCollide().radius(d => d.baseRadius + (N > 1000 ? 5 : 12)))
+        .on("tick", requestRender)
+        .on("end", () => {
+          calculateIntersections();
+          requestRender();
+          fitNetworkToView(600);
+        });
+    }
+
+    simulation.alpha(1).restart();
+  }
+
+  function applyHeightModeToNodes() {
+    if (!networkNodes || networkNodes.length === 0) return;
+    const N = networkNodes.length;
+
+    let scores = new Float32Array(N);
+
+    if (currentHeightMode === 'chrono') {
+      // CHRONOLOGICAL HEIGHT FUNCTION:
+      // Depending on chronoDirection, either Newest or Oldest is the elevated peak
+      const timestamps = networkNodes.map(n => n.timestamp || 0);
+      const minT = Math.min(...timestamps);
+      const maxT = Math.max(...timestamps);
+      const span = maxT - minT || 1;
+      for (let i = 0; i < N; i++) {
+        const raw = ((networkNodes[i].timestamp || 0) - minT) / span;
+        scores[i] = (chronoDirection === 'newest') ? raw : (1 - raw);
+      }
+    } else if (currentHeightMode === 'degree') {
+      // DEGREE CENTRALITY HEIGHT FUNCTION:
+      // Nodes connected to more links/bridges = highest peaks
+      const degreeCounts = new Int32Array(N);
+      networkLinks.forEach(l => {
+        const sId = typeof l.source === 'object' ? l.source.id : l.source;
+        const tId = typeof l.target === 'object' ? l.target.id : l.target;
+        if (sId >= 0 && sId < N) degreeCounts[sId]++;
+        if (tId >= 0 && tId < N) degreeCounts[tId]++;
+      });
+      const maxD = Math.max(...degreeCounts) || 1;
+      for (let i = 0; i < N; i++) {
+        scores[i] = degreeCounts[i] / maxD;
+      }
+    } else {
+      // DEFAULT: CLUSTER / VOCABULARY CENTRALITY HEIGHT FUNCTION
+      const centralityList = networkNodes.map(n => n.centralityScore || 0.5);
+      const minC = Math.min(...centralityList);
+      const maxC = Math.max(...centralityList);
+      const span = maxC - minC || 0.001;
+      for (let i = 0; i < N; i++) {
+        scores[i] = (centralityList[i] - minC) / span;
+      }
+    }
+
+    // Assign elevations, radii, and terrain tiers
+    networkNodes.forEach((node, i) => {
+      let raw = Math.max(0, Math.min(1, scores[i]));
+
+      // Theme Priority Bonus: Top priority clusters gain elevation boost into highest peaks
+      if (clusterPriorityOrder.length > 0) {
+        const pIndex = clusterPriorityOrder.indexOf(node.cluster);
+        if (pIndex >= 0 && pIndex < 3) {
+          raw = Math.min(1, raw + (3 - pIndex) * 0.08);
+        }
+      }
+
+      node.elevation = 0.25 + raw * 0.75;
+      const hasSelection = activeClusterFilters.size > 0;
+      if (hasSelection) {
+        node.baseRadius = activeClusterFilters.has(node.cluster) ? 26 : 7;
+      } else {
+        node.baseRadius = 14 + node.elevation * 16;
+      }
+      node.tier = node.elevation > 0.75 ? 'peak' : (node.elevation > 0.45 ? 'ridge' : 'valley');
+    });
+  }
+
+  function calculateIntersections() {
+    linkIntersections = [];
+    const maxLinks = Math.min(networkLinks.length, 60); // Cap for 60fps performance
+    for (let i = 0; i < maxLinks; i++) {
+      for (let j = i + 1; j < maxLinks; j++) {
+        const l1 = networkLinks[i];
+        const l2 = networkLinks[j];
+        if (l1.source.id !== l2.source.id && l1.source.id !== l2.target.id &&
+            l1.target.id !== l2.source.id && l1.target.id !== l2.target.id) {
+          const pt = findLineIntersection(l1.source, l1.target, l2.source, l2.target);
+          if (pt) linkIntersections.push(pt);
+        }
+      }
+    }
+  }
+
+  function requestRender() {
+    if (!renderRequested) {
+      renderRequested = true;
+      requestAnimationFrame(() => {
+        renderRequested = false;
+        drawNetwork();
+      });
+    }
+  }
+
+  function showToast(msg) {
+    let toast = document.getElementById('globalToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'globalToast';
+      toast.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: rgba(14, 19, 31, 0.95);
+        border: 1px solid #ffeaa7;
+        color: #ffeaa7;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 12px;
+        font-weight: bold;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+        z-index: 1000000;
+        pointer-events: none;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        transform: translateY(10px);
+        opacity: 0;
+      `;
+      document.body.appendChild(toast);
+    }
+    toast.innerText = msg;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+    }, 2200);
+  }
+
+  function openPostInBackground(url, creator) {
+    if (!url) return;
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      const evt = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        ctrlKey: true,
+        metaKey: true
+      });
+      a.dispatchEvent(evt);
+
+      // Secondary guarantee: window.open with blur/focus to keep current tab focused
+      const win = window.open(url, '_blank', 'noopener,noreferrer');
+      if (win) {
+        try { win.blur(); } catch (e) {}
+        window.focus();
+      }
+    } catch (err) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+    showToast(`↗ Opened ${creator ? '@' + creator : 'post'} in background tab`);
+  }
+
+  function initNetworkCanvas() {
+    canvas = document.getElementById('networkCanvas');
+    ctx = canvas.getContext('2d');
+
+    function resize() {
+      const wrap = document.getElementById('canvasWrap');
+      if (!wrap || !canvas) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = wrap.clientWidth * dpr;
+      canvas.height = wrap.clientHeight * dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+      requestRender();
+    }
+    window.resizeCanvas = resize;
+    window.addEventListener('resize', resize);
+    resize();
+
+    zoomBehavior = d3.zoom()
+      .scaleExtent([0.04, 6])
+      .filter((event) => {
+        // Prevent D3 from intercepting double-click so user double-click opens Instagram post
+        return event.type !== 'dblclick';
+      })
+      .on('zoom', (event) => {
+        currentTransform = event.transform;
+        updateAltitudeHUD(currentTransform.k);
+        requestRender();
+      });
+
+    d3.select(canvas)
+      .call(zoomBehavior)
+      .call(d3.drag()
+        .container(canvas)
+        .subject(dragSubject)
+        .on("start", dragStarted)
+        .on("drag", dragged)
+        .on("end", dragEnded)
+      );
+
+    let lastMouseMoveTime = 0;
+    canvas.addEventListener('mousemove', (e) => {
+      const now = performance.now();
+      if (now - lastMouseMoveTime < 20) return;
+      lastMouseMoveTime = now;
+
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const [virtX, virtY] = currentTransform.invert([mouseX, mouseY]);
+
+      const found = networkNodes.find(node => {
+        const dx = node.x - virtX;
+        const dy = node.y - virtY;
+        const effectiveR = getNodeRenderRadius(node, currentTransform.k);
+        return (dx * dx + dy * dy) <= (effectiveR * effectiveR);
+      });
+
+      const tooltip = document.getElementById('nodeTooltip');
+      if (found) {
+        hoveredNode = found;
+        canvas.style.cursor = 'pointer';
+        tooltip.style.display = 'block';
+        tooltip.style.left = `${Math.min(mouseX, rect.width - 270)}px`;
+        tooltip.style.top = `${Math.min(mouseY, rect.height - 180)}px`;
+        document.getElementById('tooltipImg').src = found.thumbnailUrl;
+        const elevMeters = Math.round(found.elevation * 1000);
+        let heightDetail = `▲${elevMeters}m`;
+        if (currentHeightMode === 'chrono') {
+          heightDetail = `⏳ ${found.dateFormatted} (▲${elevMeters}m)`;
+        } else if (currentHeightMode === 'degree') {
+          heightDetail = `🔗 Degree (▲${elevMeters}m)`;
+        }
+        safeSetText('tooltipCreator', `@${found.creator} (${found.contentType}) • [${found.tier.toUpperCase()} ${heightDetail}]`);
+        safeSetText('tooltipCaption', (found.captionSummary || 'No caption') + ' • 💡 Double-click to open ↗');
+      } else {
+        if (hoveredNode !== null) {
+          hoveredNode = null;
+          canvas.style.cursor = 'grab';
+          tooltip.style.display = 'none';
+        }
+      }
+      requestRender();
+    });
+
+    canvas.addEventListener('click', (e) => {
+      if (hoveredNode) {
+        findThematicNeighbors(hoveredNode.id);
+      }
+    });
+
+    // Double-click on canvas node to open Instagram post/reel in background tab
+    canvas.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const [virtX, virtY] = currentTransform.invert([mouseX, mouseY]);
+
+      const targetNode = networkNodes.find(node => {
+        const dx = node.x - virtX;
+        const dy = node.y - virtY;
+        const effectiveR = getNodeRenderRadius(node, currentTransform.k) * 1.35;
+        return (dx * dx + dy * dy) <= (effectiveR * effectiveR);
+      }) || hoveredNode;
+
+      if (targetNode && targetNode.url) {
+        openPostInBackground(targetNode.url, targetNode.creator);
+      }
+    });
+
+    // Also support double-click on floating node tooltip card
+    const tooltip = document.getElementById('nodeTooltip');
+    if (tooltip) {
+      tooltip.title = "Double-click to open on Instagram in new tab";
+      tooltip.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (hoveredNode && hoveredNode.url) {
+          openPostInBackground(hoveredNode.url, hoveredNode.creator);
+        }
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+      if (e.key === '1') setHeightMode('centrality');
+      else if (e.key === '2') setHeightMode('chrono');
+      else if (e.key === '3') setHeightMode('degree');
+      else if (e.key === 'r' || e.key === 'R' || e.key === 'f' || e.key === 'F') fitNetworkToView(450);
+      else if (e.key === 'Escape') clearSimilarityFilter();
+    });
+  }
+
+  function updateAltitudeHUD(k) {
+    const meters = Math.round(1000 / k);
+    const formatted = meters >= 10000 
+      ? `${(meters / 1000).toFixed(1)}km` 
+      : `${meters.toLocaleString()}m`;
+    safeSetText('altitudeBadge', `ALTITUDE: ${formatted} (${k.toFixed(2)}x)`);
+  }
+
+  function dragSubject(event) {
+    const [virtX, virtY] = currentTransform.invert([event.x, event.y]);
+    return simulation.find(virtX, virtY, 35);
+  }
+  function dragStarted(event) {
+    if (!event.active) simulation.alphaTarget(0.2).restart();
+    event.subject.fx = event.subject.x;
+    event.subject.fy = event.subject.y;
+  }
+  function dragged(event) {
+    const [virtX, virtY] = currentTransform.invert([event.x, event.y]);
+    event.subject.fx = virtX;
+    event.subject.fy = virtY;
+    requestRender();
+  }
+  function dragEnded(event) {
+    if (!event.active) simulation.alphaTarget(0);
+    event.subject.fx = null;
+    event.subject.fy = null;
+    calculateIntersections();
+    requestRender();
+  }
+
+  function zoomNetwork(factor) {
+    d3.select(canvas).transition().duration(300).call(zoomBehavior.scaleBy, factor);
+  }
+  function resetNetworkZoom() {
+    d3.select(canvas).transition().duration(400).call(zoomBehavior.transform, d3.zoomIdentity);
+  }
+
+  function fitNetworkToView(duration = 500) {
+    if (!networkNodes || networkNodes.length === 0 || !canvas) return;
+    const wrap = document.getElementById('canvasWrap');
+    const width = wrap.clientWidth || 900;
+    const height = wrap.clientHeight || 620;
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    networkNodes.forEach(n => {
+      if (typeof n.x === 'number' && isFinite(n.x)) {
+        if (n.x < minX) minX = n.x;
+        if (n.x > maxX) maxX = n.x;
+      }
+      if (typeof n.y === 'number' && isFinite(n.y)) {
+        if (n.y < minY) minY = n.y;
+        if (n.y > maxY) maxY = n.y;
+      }
+    });
+
+    if (minX === Infinity || maxX === -Infinity) return;
+
+    const graphW = Math.max(maxX - minX, 150);
+    const graphH = Math.max(maxY - minY, 150);
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    // Generous framing with 35% padding for halos and badges
+    const padFactor = 1.35;
+    const scaleX = width / (graphW * padFactor);
+    const scaleY = height / (graphH * padFactor);
+    let targetK = Math.min(scaleX, scaleY);
+    targetK = Math.max(0.045, Math.min(1.2, targetK));
+
+    const translateX = width / 2 - centerX * targetK;
+    const translateY = height / 2 - centerY * targetK;
+
+    const targetTransform = d3.zoomIdentity.translate(translateX, translateY).scale(targetK);
+
+    if (duration > 0 && zoomBehavior) {
+      d3.select(canvas).transition().duration(duration).call(zoomBehavior.transform, targetTransform);
+    } else if (zoomBehavior) {
+      d3.select(canvas).call(zoomBehavior.transform, targetTransform);
+    }
+  }
+
+  function getNodeRenderRadius(node, k) {
+    const showThumb = k >= 1.25;
+    return node.baseRadius * (showThumb ? 1.3 : 1.0);
+  }
+
+  // ASCII CONTOUR SHADER (LIGHT YELLOW MONOSPACE)
+  function drawAsciiContourShader(peakNode, zoomK) {
+    const yellow = '#ffeaa7';
+    ctx.save();
+    ctx.font = '10px monospace';
+    ctx.fillStyle = yellow;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    let tierLabels = ['[▲850m]', '[▲550m]', '[▲250m]'];
+    if (currentHeightMode === 'chrono') {
+      tierLabels = (chronoDirection === 'newest')
+        ? ['[▲RECENT EXCAVATION]', '[▲MID STRATA]', '[▲ANCIENT ARCHIVE]']
+        : ['[▲ANCIENT ARCHIVE]', '[▲MID STRATA]', '[▲RECENT EXCAVATION]'];
+    } else if (currentHeightMode === 'degree') {
+      tierLabels = ['[▲HUB-DEGREE]', '[▲INTERMEDIARY]', '[▲PERIPHERAL]'];
+    }
+
+    const asciiTiers = [
+      { r: 75,  step: 0.18, chars: ['·', ':', '·', '+', '·', ':'], label: tierLabels[0], alpha: 0.75 },
+      { r: 135, step: 0.12, chars: ['~', '·', ':', '·', '~', '·'], label: tierLabels[1], alpha: 0.50 },
+      { r: 195, step: 0.08, chars: ['·', '.', '·', '.', '·'],       label: tierLabels[2], alpha: 0.30 }
+    ];
+
+    asciiTiers.forEach((tier) => {
+      ctx.globalAlpha = tier.alpha * Math.min(1.3, zoomK);
+      const totalSteps = Math.floor((2 * Math.PI) / tier.step);
+
+      for (let s = 0; s < totalSteps; s++) {
+        const theta = s * tier.step;
+        if (Math.abs(theta - 0.3) < 0.25) {
+          if (s === Math.floor(0.3 / tier.step)) {
+            ctx.save();
+            ctx.translate(peakNode.x + Math.cos(0.3) * tier.r, peakNode.y + Math.sin(0.3) * tier.r);
+            ctx.rotate(0.3 + Math.PI / 2);
+            ctx.fillText(tier.label, 0, 0);
+            ctx.restore();
+          }
+          continue;
+        }
+        const x = peakNode.x + Math.cos(theta) * tier.r;
+        const y = peakNode.y + Math.sin(theta) * tier.r;
+        ctx.fillText(tier.chars[s % tier.chars.length], x, y);
+      }
+    });
+
+    ctx.restore();
+  }
+
+  // PURE ASCII DEPTH ENGINE (ZERO CANVAS GLOW, ZERO BLURRY ARCS)
+  // Topographic depth is rendered exclusively via ASCII character density,
+  // isometric corner brackets, strata tick rings, and typographic elevation weighting.
+  function drawAsciiDepthNode(node, radius, isHovered, isTarget, zoomK, isDimmed = false) {
+    if (isDimmed) {
+      // Dimmed state for unselected tabs: faint, flat single dot in muted slate
+      ctx.save();
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#64748b';
+      ctx.globalAlpha = 0.07;
+      ctx.fillText('·', node.x, node.y);
+      ctx.restore();
+      return;
+    }
+
+    const yellow = '#ffeaa7';
+    const color = isHovered ? '#ffffff' : (isTarget ? yellow : node.color);
+    const elev = node.elevation || 0.5;
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Micro-ASCII LOD for Macro/Zoomed-out View:
+    // When zoomed out, suppress multi-character reticles and render crisp single glyphs
+    // to maintain 60 FPS and delicate astronomical gossamer clarity.
+    if (zoomK < 0.45 && !isHovered && !isTarget) {
+      if (elev > 0.75) {
+        ctx.font = 'bold 9px monospace';
+        ctx.fillStyle = yellow;
+        ctx.globalAlpha = 0.90;
+        ctx.fillText('◈', node.x, node.y);
+      } else if (elev > 0.45) {
+        ctx.font = '8px monospace';
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.70;
+        ctx.fillText('+', node.x, node.y);
+      } else {
+        ctx.font = '7px monospace';
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.40;
+        ctx.fillText('·', node.x, node.y);
+      }
+      ctx.restore();
+      return;
+    }
+
+    // 1. TOPOGRAPHIC STRATA RINGS & RETICLE (Character density scales with elevation)
+    if (elev > 0.75 || isHovered || isTarget) {
+      // === SUMMIT / ANCHOR PEAK DEPTH ===
+      // Outer ASCII tick ring: 8 high-density ticks [+ · : ·]
+      ctx.save();
+      const outerR = radius * (zoomK < 0.65 ? 1.4 : 1.15);
+      const ringChars = ['+', '·', ':', '·', '+', '·', ':', '·'];
+      const ringFontSize = Math.max(9, Math.round(9 / Math.sqrt(zoomK)));
+      ctx.font = `${ringFontSize}px monospace`;
+      ctx.fillStyle = isHovered ? '#ffffff' : yellow;
+      ctx.globalAlpha = isHovered ? 0.95 : 0.75;
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2;
+        ctx.fillText(ringChars[i], node.x + Math.cos(ang) * outerR, node.y + Math.sin(ang) * outerR);
+      }
+      ctx.restore();
+
+      // Corner Reticle Brackets: [ ┌ ┐ └ ┘ ]
+      ctx.save();
+      const bOffset = radius * (zoomK < 0.65 ? 1.6 : 1.3);
+      const bSize = Math.max(10, Math.round(11 / Math.sqrt(zoomK)));
+      ctx.font = `${bSize}px monospace`;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = isHovered ? 1.0 : 0.85;
+      ctx.fillText('┌', node.x - bOffset, node.y - bOffset);
+      ctx.fillText('┐', node.x + bOffset, node.y - bOffset);
+      ctx.fillText('└', node.x - bOffset, node.y + bOffset);
+      ctx.fillText('┘', node.x + bOffset, node.y + bOffset);
+      ctx.restore();
+
+      // Core Summit Glyph: ◈ with bold archaeological contrast
+      ctx.save();
+      const coreSize = Math.max(12, Math.round(13 / Math.sqrt(zoomK)));
+      ctx.font = `bold ${coreSize}px monospace`;
+      ctx.fillStyle = isHovered ? '#ffffff' : yellow;
+      ctx.globalAlpha = 1.0;
+      ctx.fillText('◈', node.x, node.y);
+
+      // Peak Indicator Arrow on top: ▲
+      ctx.font = `${Math.max(8, Math.round(8 / Math.sqrt(zoomK)))}px monospace`;
+      ctx.fillText('▲', node.x, node.y - bOffset - 2);
+      ctx.restore();
+
+    } else if (elev > 0.45) {
+      // === MID-TIER RIDGE DEPTH ===
+      // Outer strata ring: 4 cardinal ticks [· : · :]
+      ctx.save();
+      const midR = radius * (zoomK < 0.65 ? 1.25 : 1.05);
+      const midChars = ['·', ':', '·', ':'];
+      const midFontSize = Math.max(8, Math.round(8 / Math.sqrt(zoomK)));
+      ctx.font = `${midFontSize}px monospace`;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.55;
+      for (let i = 0; i < 4; i++) {
+        const ang = (i / 4) * Math.PI * 2;
+        ctx.fillText(midChars[i], node.x + Math.cos(ang) * midR, node.y + Math.sin(ang) * midR);
+      }
+      ctx.restore();
+
+      // Core Ridge Glyph: 'o'
+      ctx.save();
+      const coreSize = Math.max(10, Math.round(11 / Math.sqrt(zoomK)));
+      ctx.font = `${coreSize}px monospace`;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.90;
+      ctx.fillText('o', node.x, node.y);
+      ctx.restore();
+
+    } else {
+      // === VALLEY / BEDROCK DEPTH ===
+      // Minimal, recessed single dot: '·'
+      ctx.save();
+      const coreSize = Math.max(9, Math.round(10 / Math.sqrt(zoomK)));
+      ctx.font = `${coreSize}px monospace`;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.65;
+      ctx.fillText('·', node.x, node.y);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  // SCREEN-SPACE TILING & GEOMETRY HELPERS
+  function drawRoundedRect(context, x, y, width, height, radius) {
+    if (context.roundRect) {
+      context.beginPath();
+      context.roundRect(x, y, width, height, radius);
+      return;
+    }
+    context.beginPath();
+    context.moveTo(x + radius, y);
+    context.lineTo(x + width - radius, y);
+    context.quadraticCurveTo(x + width, y, x + width, y + radius);
+    context.lineTo(x + width, y + height - radius);
+    context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    context.lineTo(x + radius, y + height);
+    context.quadraticCurveTo(x, y + height, x, y + height - radius);
+    context.lineTo(x, y + radius);
+    context.quadraticCurveTo(x, y, x + radius, y);
+    context.closePath();
+  }
+
+  function boxesIntersect(r1, r2) {
+    return !(r1.x + r1.w < r2.x || r2.x + r2.w < r1.x || r1.y + r1.h < r2.y || r2.y + r2.h < r1.y);
+  }
+
+  // MAIN RENDER LOOP: ASCII NODES, CONTOURS & TERRAIN INTERSECTIONS
+  function drawNetwork() {
+    if (!ctx) return;
+    const wrap = document.getElementById('canvasWrap');
+    const width = wrap.clientWidth;
+    const height = wrap.clientHeight;
+
+    ctx.save();
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.translate(currentTransform.x, currentTransform.y);
+    ctx.scale(currentTransform.k, currentTransform.k);
+
+    const zoomK = currentTransform.k;
+    const showThumbnails = zoomK >= 1.25;
+
+    const [left, top] = currentTransform.invert([0, 0]);
+    const [right, bottom] = currentTransform.invert([width, height]);
+    const pad = Math.max(160, 100 / zoomK);
+
+    // Track placed screen-space label bounding boxes to guarantee zero text overlap!
+    const placedLabelBoxes = [];
+
+    // 0. FAINT BACKGROUND CARTOGRAPHIC COORDINATE GRID
+    ctx.save();
+    ctx.font = '9px monospace';
+    ctx.fillStyle = 'rgba(255, 234, 167, 0.08)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const gridStep = 80;
+    const startX = Math.floor(left / gridStep) * gridStep;
+    const endX = Math.ceil(right / gridStep) * gridStep;
+    const startY = Math.floor(top / gridStep) * gridStep;
+    const endY = Math.ceil(bottom / gridStep) * gridStep;
+    for (let gx = startX; gx <= endX; gx += gridStep) {
+      for (let gy = startY; gy <= endY; gy += gridStep) {
+        ctx.fillText('·', gx, gy);
+      }
+    }
+    ctx.restore();
+
+    // 0b. CONCENTRIC ASCII STRATA ISOBARS (DEPTH WITHOUT BLURRY GLOW)
+    const clusterCentroidMap = new Map();
+    ctx.save();
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    clusters.forEach(c => {
+      const cNodes = networkNodes.filter(n => n.cluster === c.id &&
+        n.x >= left - pad && n.x <= right + pad && n.y >= top - pad && n.y <= bottom + pad);
+      if (cNodes.length === 0) return;
+      const cx = cNodes.reduce((s, n) => s + n.x, 0) / cNodes.length;
+      const cy = cNodes.reduce((s, n) => s + n.y, 0) / cNodes.length;
+      const spread = Math.max(100, Math.sqrt(
+        cNodes.reduce((s, n) => s + (n.x - cx) ** 2 + (n.y - cy) ** 2, 0) / cNodes.length
+      ) * 1.5);
+      clusterCentroidMap.set(c.id, { cx, cy, spread, color: c.color, label: c.label });
+
+      const isCurrentActive = activeClusterFilters.size === 0 || activeClusterFilters.has(c.id);
+      if (activeClusterFilters.size > 0 && !isCurrentActive) return;
+
+      const alphaMult = isCurrentActive ? 1.0 : 0.12;
+
+      // Concentric ASCII strata contour rings with character density grading:
+      // Inner isobar ring (dense ticks ':')
+      const r1 = spread * 0.45;
+      const steps1 = Math.max(12, Math.floor(r1 * 0.22));
+      ctx.fillStyle = c.color;
+      ctx.globalAlpha = 0.32 * alphaMult;
+      for (let i = 0; i < steps1; i++) {
+        const th = (i / steps1) * Math.PI * 2;
+        ctx.fillText(':', cx + Math.cos(th) * r1, cy + Math.sin(th) * r1);
+      }
+
+      // Mid isobar contour ring (alternating dots and tildes '~' and '·')
+      const r2 = spread * 0.82;
+      const steps2 = Math.max(16, Math.floor(r2 * 0.18));
+      ctx.globalAlpha = 0.20 * alphaMult;
+      for (let i = 0; i < steps2; i++) {
+        const th = (i / steps2) * Math.PI * 2;
+        ctx.fillText(i % 2 === 0 ? '·' : '~', cx + Math.cos(th) * r2, cy + Math.sin(th) * r2);
+      }
+
+      // Outer strata perimeter (sparse dots '·')
+      const r3 = spread * 1.20;
+      const steps3 = Math.max(20, Math.floor(r3 * 0.14));
+      ctx.globalAlpha = 0.10 * alphaMult;
+      for (let i = 0; i < steps3; i++) {
+        const th = (i / steps3) * Math.PI * 2;
+        ctx.fillText('·', cx + Math.cos(th) * r3, cy + Math.sin(th) * r3);
+      }
+    });
+    ctx.restore();
+
+    // 0c. CLUSTER CENTROID TERRITORY BADGES — visible at macro/mid zoom (< 0.85x)
+    if (zoomK < 0.85) {
+      ctx.save();
+      const targetScreenPx = zoomK < 0.20 ? 12 : (zoomK < 0.45 ? 13 : 14);
+      const centroidFontSize = Math.max(14, Math.round(targetScreenPx / zoomK));
+      ctx.font = `bold ${centroidFontSize}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      clusterCentroidMap.forEach(({ cx, cy, label, color }, clusterId) => {
+        if (cx < left - pad || cx > right + pad || cy < top - pad || cy > bottom + pad) return;
+        const isClusterActive = activeClusterFilters.size === 0 || activeClusterFilters.has(clusterId);
+        if (activeClusterFilters.size > 0 && !isClusterActive) return;
+
+        const pIdx = clusterPriorityOrder.indexOf(clusterId);
+        const rankPrefix = pIdx >= 0 ? `#${pIdx + 1} ` : '';
+        const labelText = rankPrefix + (label.length > 18 ? label.substring(0, 17) + '…' : label);
+        const textMetrics = ctx.measureText(labelText);
+        const padX = 8 / zoomK;
+        const padY = 5 / zoomK;
+        const boxW = textMetrics.width + padX * 2;
+        const boxH = centroidFontSize + padY * 2;
+
+        let badgeX = cx;
+        let badgeY = cy;
+
+        // De-conflict cluster badges if centroids overlap each other
+        let testBox = { x: badgeX - boxW / 2, y: badgeY - boxH / 2, w: boxW, h: boxH };
+        let offsetStep = 0;
+        while (placedLabelBoxes.some(box => boxesIntersect(testBox, box)) && offsetStep < 4) {
+          offsetStep++;
+          badgeY += (boxH + 4 / zoomK) * (offsetStep % 2 === 1 ? 1 : -1) * offsetStep;
+          testBox.y = badgeY - boxH / 2;
+        }
+
+        placedLabelBoxes.push({
+          x: badgeX - boxW / 2 - (3 / zoomK),
+          y: badgeY - boxH / 2 - (3 / zoomK),
+          w: boxW + (6 / zoomK),
+          h: boxH + (6 / zoomK)
+        });
+
+        // Dark cartographic backing box
+        ctx.fillStyle = 'rgba(5, 7, 13, 0.92)';
+        drawRoundedRect(ctx, badgeX - boxW / 2, badgeY - boxH / 2, boxW, boxH, 4 / zoomK);
+        ctx.fill();
+
+        // Thin cluster-colored border
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(1, 1.4 / zoomK);
+        ctx.stroke();
+
+        // Badge text
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 1.0;
+        ctx.fillText(labelText, badgeX, badgeY);
+      });
+      ctx.restore();
+    }
+
+    // 0d. CHRONOLOGICAL STRATA CORRIDOR HEADER & DIRECTION MARKERS
+    if (currentLens === 'chrono' && networkNodes.length > 0) {
+      ctx.save();
+      const bannerH = 26 / zoomK;
+      const bannerY = top + (12 / zoomK);
+      const bannerW = right - left;
+
+      ctx.fillStyle = 'rgba(5, 7, 13, 0.90)';
+      ctx.fillRect(left, bannerY, bannerW, bannerH);
+      ctx.strokeStyle = 'rgba(88, 166, 255, 0.35)';
+      ctx.lineWidth = 1 / zoomK;
+      ctx.strokeRect(left, bannerY, bannerW, bannerH);
+
+      const bannerFontSize = Math.max(10, Math.round(11 / Math.sqrt(zoomK)));
+      ctx.font = `bold ${bannerFontSize}px monospace`;
+      ctx.textBaseline = 'middle';
+
+      // Center title
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#79c0ff';
+      const dirText = chronoDirection === 'newest' ? 'NEWEST ➔ OLDEST' : 'OLDEST ➔ NEWEST';
+      ctx.fillText(`::: DIGSITE CHRONOLOGICAL STRATA AXIS [${dirText}] :::`, (left + right) / 2, bannerY + bannerH / 2);
+
+      // Left and Right Boundary Markers
+      const leftTag = chronoDirection === 'newest' ? '◀ [▲ RECENT EXCAVATION (PEAK)]' : '◀ [▲ ANCIENT ARCHIVE (BEDROCK)]';
+      const rightTag = chronoDirection === 'newest' ? '[▼ ANCIENT ARCHIVE (BEDROCK)] ▶' : '[▼ RECENT EXCAVATION (PEAK)] ▶';
+
+      ctx.font = `${Math.max(9, Math.round(10 / Math.sqrt(zoomK)))}px monospace`;
+      ctx.fillStyle = '#ffeaa7';
+      ctx.textAlign = 'left';
+      ctx.fillText(leftTag, left + (20 / zoomK), bannerY + bannerH / 2);
+
+      ctx.textAlign = 'right';
+      ctx.fillText(rightTag, right - (20 / zoomK), bannerY + bannerH / 2);
+      ctx.restore();
+    }
+
+    // 1. LIGHT YELLOW ASCII CONTOUR SHADER AROUND ANCHOR PEAKS
+    clusters.forEach(c => {
+      if (activeClusterFilters.size > 0 && !activeClusterFilters.has(c.id)) return;
+      const clusterNodes = networkNodes.filter(n => n.cluster === c.id);
+      if (clusterNodes.length === 0) return;
+      const peak = clusterNodes.reduce((prev, curr) => (curr.elevation > prev.elevation) ? curr : prev, clusterNodes[0]);
+
+      if (peak && peak.x >= left - pad && peak.x <= right + pad && peak.y >= top - pad && peak.y <= bottom + pad) {
+        drawAsciiContourShader(peak, zoomK);
+      }
+    });
+
+    // 1b. CROSS-CLUSTER CORRELATION ANALYSIS (Identify bridges between active clusters)
+    const bridgeNodeIds = new Set();
+    const correlationLinks = new Set();
+
+    if (activeClusterFilters.size > 1) {
+      networkLinks.forEach(link => {
+        const s = typeof link.source === 'object' ? link.source : networkNodes[link.source];
+        const t = typeof link.target === 'object' ? link.target : networkNodes[link.target];
+        if (s && t && activeClusterFilters.has(s.cluster) && activeClusterFilters.has(t.cluster) && s.cluster !== t.cluster) {
+          bridgeNodeIds.add(s.id);
+          bridgeNodeIds.add(t.id);
+          correlationLinks.add(link);
+        }
+      });
+    }
+
+    // 2. TERRAIN RIDGELINES (LINKS WITH SCALE-INVARIANT VISIBILITY)
+    networkLinks.forEach(link => {
+      const source = link.source;
+      const target = link.target;
+      const isConnHovered = hoveredNode && (hoveredNode.id === source.id || hoveredNode.id === target.id);
+      const avgElev = (source.elevation + target.elevation) / 2;
+
+      const isCrossCorrelation = correlationLinks.has(link);
+      const isLinkInActiveClusters = activeClusterFilters.size === 0 || 
+        (activeClusterFilters.has(source.cluster) && activeClusterFilters.has(target.cluster));
+      const isLinkConnectedToActive = activeClusterFilters.size > 0 && 
+        (activeClusterFilters.has(source.cluster) || activeClusterFilters.has(target.cluster));
+
+      ctx.beginPath();
+      ctx.moveTo(source.x, source.y);
+      ctx.lineTo(target.x, target.y);
+
+      if (isConnHovered) {
+        ctx.strokeStyle = '#ffeaa7';
+        ctx.lineWidth = Math.max(2.8, 2.2 / Math.sqrt(zoomK));
+        ctx.globalAlpha = 0.98;
+        ctx.stroke();
+      } else if (isCrossCorrelation) {
+        // HIGHLIGHT CORRELATION BRIDGE LINK BETWEEN SELECTED THEMES!
+        ctx.strokeStyle = '#ffeaa7';
+        ctx.lineWidth = Math.max(2.5, 2.0 / Math.sqrt(zoomK));
+        ctx.globalAlpha = 0.95;
+        ctx.stroke();
+
+        // Correlation Bridge Glyph at midpoint
+        const midX = (source.x + target.x) / 2;
+        const midY = (source.y + target.y) / 2;
+        if (midX >= left - pad && midX <= right + pad && midY >= top - pad && midY <= bottom + pad) {
+          ctx.save();
+          const glyphSize = Math.max(12, Math.min(22, 11 / zoomK));
+          ctx.font = `bold ${glyphSize}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#ffeaa7';
+          ctx.globalAlpha = 0.95;
+          ctx.fillText('✦', midX, midY);
+          ctx.restore();
+        }
+      } else if (activeClusterFilters.size > 0 && !isLinkInActiveClusters) {
+        // Dim links outside active clusters
+        ctx.lineWidth = Math.max(0.5, 0.35 / Math.sqrt(zoomK));
+        ctx.strokeStyle = isLinkConnectedToActive ? 'rgba(88, 166, 255, 0.16)' : 'rgba(100, 116, 139, 0.04)';
+        ctx.globalAlpha = isLinkConnectedToActive ? 0.18 : 0.03;
+        ctx.stroke();
+      } else {
+        // Normal or intra-cluster link with density-adaptive gossamer translucency
+        const densityFactor = networkNodes.length > 500 ? Math.sqrt(500 / networkNodes.length) : 1.0;
+        const minW = Math.max(0.4, 0.9 * densityFactor);
+        ctx.lineWidth = Math.max(minW, (0.45 + avgElev * 0.40) * densityFactor / Math.sqrt(zoomK));
+        ctx.strokeStyle = avgElev > 0.65 ? 'rgba(255, 234, 167, 0.42)' : 'rgba(88, 166, 255, 0.28)';
+        ctx.globalAlpha = Math.min(0.75, (0.15 + avgElev * 0.30) * densityFactor + (zoomK < 0.6 ? 0.06 : 0));
+        ctx.stroke();
+      }
+
+      // ASCII Ridge Elevation Glyphs at midpoint (shown when zoom has enough detail)
+      if (zoomK >= 0.68 && isLinkInActiveClusters && !isCrossCorrelation) {
+        const midX = (source.x + target.x) / 2;
+        const midY = (source.y + target.y) / 2;
+        if (midX >= left - pad && midX <= right + pad && midY >= top - pad && midY <= bottom + pad) {
+          ctx.save();
+          ctx.font = '10px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = avgElev > 0.65 ? '#ffeaa7' : 'rgba(88, 166, 255, 0.7)';
+          ctx.globalAlpha = 0.5 + avgElev * 0.4;
+          const terrainGlyph = avgElev > 0.7 ? '▲' : (avgElev > 0.45 ? '~' : '·');
+          ctx.fillText(terrainGlyph, midX, midY);
+          ctx.restore();
+        }
+      }
+    });
+
+    // 3. TERRAIN NETWORK INTERSECTIONS (+) — filtered when zoomed far out
+    if (linkIntersections.length > 0 && zoomK >= 0.65) {
+      ctx.save();
+      ctx.font = 'bold 11px monospace';
+      ctx.fillStyle = '#ffeaa7';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      linkIntersections.forEach(pt => {
+        if (pt.x >= left - pad && pt.x <= right + pad && pt.y >= top - pad && pt.y <= bottom + pad) {
+          ctx.globalAlpha = 0.65;
+          ctx.fillText('+', pt.x, pt.y);
+        }
+      });
+      ctx.restore();
+    }
+
+    // 4. DRAW NODES (Render order: Dimmed nodes first -> Active nodes -> Bridge nodes on top)
+    const sortedRenderNodes = [...networkNodes].sort((a, b) => {
+      const aDimmed = activeClusterFilters.size > 0 && !activeClusterFilters.has(a.cluster);
+      const bDimmed = activeClusterFilters.size > 0 && !activeClusterFilters.has(b.cluster);
+      if (aDimmed !== bDimmed) return aDimmed ? -1 : 1;
+      
+      const aBridge = bridgeNodeIds.has(a.id);
+      const bBridge = bridgeNodeIds.has(b.id);
+      if (aBridge !== bBridge) return aBridge ? 1 : -1;
+
+      // Higher priority clusters drawn on top
+      const aPri = clusterPriorityOrder.indexOf(a.cluster);
+      const bPri = clusterPriorityOrder.indexOf(b.cluster);
+      return (bPri === -1 ? 999 : bPri) - (aPri === -1 ? 999 : aPri);
+    });
+
+    sortedRenderNodes.forEach(node => {
+      if (node.x < left - pad || node.x > right + pad || node.y < top - pad || node.y > bottom + pad) {
+        return;
+      }
+
+      const isHovered = hoveredNode && hoveredNode.id === node.id;
+      const isTarget = activeSimilarityTarget && activeSimilarityTarget.id === node.id;
+      const isNodeInActiveCluster = activeClusterFilters.size === 0 || activeClusterFilters.has(node.cluster);
+      const isDimmed = activeClusterFilters.size > 0 && !isNodeInActiveCluster && !isHovered;
+      const isBridgeNode = bridgeNodeIds.has(node.id);
+      const radius = getNodeRenderRadius(node, zoomK) * (isHovered ? 1.15 : (isDimmed ? 0.6 : (isBridgeNode ? 1.25 : 1)));
+      const img = preloadedImages.get(node.shortcode);
+
+      if (isDimmed) {
+        ctx.globalAlpha = 0.06;
+      } else {
+        const fogAlpha = zoomK < 1.1 
+          ? Math.max(0.55, 0.40 + node.elevation * 0.60) 
+          : Math.min(1.0, 0.80 + node.elevation * 0.20);
+        ctx.globalAlpha = isHovered ? 1.0 : fogAlpha;
+      }
+
+      if (showThumbnails && img && img.complete && img.naturalWidth > 0) {
+        if (isDimmed) {
+          ctx.save();
+          ctx.globalAlpha = 0.06;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, radius * 0.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#334155';
+          ctx.fill();
+          ctx.restore();
+        } else {
+          // === HIGH ZOOM: CIRCULAR THUMBNAIL IN ASCII RETICLE FRAME ===
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(img, node.x - radius, node.y - radius, radius * 2, radius * 2);
+          ctx.restore();
+
+          // Wireframe ASCII Reticle Corners [ ┌ ┐ └ ┘ ]
+          ctx.save();
+          ctx.font = '12px monospace';
+          ctx.fillStyle = isHovered ? '#fff' : (isTarget ? '#ffeaa7' : node.color);
+          const rOffset = radius + 2;
+          ctx.fillText('┌', node.x - rOffset, node.y - rOffset);
+          ctx.fillText('┐', node.x + rOffset, node.y - rOffset);
+          ctx.fillText('└', node.x - rOffset, node.y + rOffset);
+          ctx.fillText('┘', node.x + rOffset, node.y + rOffset);
+
+          // ASCII Strata Elevation Tag below thumbnail: [▲850m] or [·150m]
+          const elevTag = node.elevation > 0.75 
+            ? `[▲${Math.round(node.elevation * 1000)}m]` 
+            : `[·${Math.round(node.elevation * 1000)}m]`;
+          ctx.font = '8px monospace';
+          ctx.fillStyle = node.elevation > 0.75 ? '#ffeaa7' : 'rgba(255,255,255,0.7)';
+          ctx.textAlign = 'center';
+          ctx.fillText(elevTag, node.x, node.y + radius + 11);
+          ctx.restore();
+
+          // Content icon badge
+          ctx.fillStyle = 'rgba(5, 7, 13, 0.9)';
+          ctx.strokeStyle = '#ffeaa7';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(node.x + radius * 0.65, node.y - radius * 0.65, 8.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.font = '10px monospace';
+          ctx.fillStyle = '#ffeaa7';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(node.contentType === 'Reel' ? '🎬' : '📷', node.x + radius * 0.65, node.y - radius * 0.65);
+        }
+
+      } else {
+        // === PURE ASCII DEPTH ENGINE (ALL NON-THUMBNAIL ZOOMS) ===
+        drawAsciiDepthNode(node, radius, isHovered, isTarget, zoomK, isDimmed);
+      }
+
+      // CORRELATION BRIDGE RETICLE: Highlight intersection nodes between active themes!
+      if (isBridgeNode && !isDimmed) {
+        ctx.save();
+        ctx.strokeStyle = '#ffeaa7';
+        ctx.lineWidth = Math.max(1.8, 1.4 / zoomK);
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius * 1.35, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.font = `bold ${Math.max(10, 8 / zoomK)}px monospace`;
+        ctx.fillStyle = '#ffeaa7';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✦', node.x, node.y - radius * 1.35 - (4 / zoomK));
+        ctx.restore();
+      }
+
+      // Node graphics rendering complete for this node
+    });
+
+    // === PASS 2: CARTOGRAPHIC SCREEN-SPACE COLLISION-FREE LABEL TILING ===
+    const candidateLabelNodes = sortedRenderNodes.filter(node => {
+      if (node.x < left - pad || node.x > right + pad || node.y < top - pad || node.y > bottom + pad) return false;
+      const isHovered = hoveredNode && hoveredNode.id === node.id;
+      const isTarget = activeSimilarityTarget && activeSimilarityTarget.id === node.id;
+      const isNodeInActiveCluster = activeClusterFilters.size === 0 || activeClusterFilters.has(node.cluster);
+      const isDimmed = activeClusterFilters.size > 0 && !isNodeInActiveCluster && !isHovered;
+      if (isDimmed) return false;
+
+      const isBridgeNode = bridgeNodeIds.has(node.id);
+
+      return isHovered || isTarget ||
+        (zoomK >= 0.90) ||
+        (isBridgeNode && (zoomK >= 0.38 || node.elevation > 0.45)) ||
+        (zoomK >= 0.52 && node.elevation > 0.52) ||
+        (zoomK >= 0.28 && node.elevation > 0.78);
+    });
+
+    candidateLabelNodes.sort((a, b) => {
+      const aHover = hoveredNode && hoveredNode.id === a.id;
+      const bHover = hoveredNode && hoveredNode.id === b.id;
+      if (aHover !== bHover) return aHover ? -1 : 1;
+
+      const aTarget = activeSimilarityTarget && activeSimilarityTarget.id === a.id;
+      const bTarget = activeSimilarityTarget && activeSimilarityTarget.id === b.id;
+      if (aTarget !== bTarget) return aTarget ? -1 : 1;
+
+      const aPeak = a.elevation > 0.8;
+      const bPeak = b.elevation > 0.8;
+      if (aPeak !== bPeak) return aPeak ? -1 : 1;
+
+      const aBridge = bridgeNodeIds.has(a.id);
+      const bBridge = bridgeNodeIds.has(b.id);
+      if (aBridge !== bBridge) return aBridge ? -1 : 1;
+
+      return (b.elevation || 0) - (a.elevation || 0);
+    });
+
+    candidateLabelNodes.forEach(node => {
+      const isHovered = hoveredNode && hoveredNode.id === node.id;
+      const isTarget = activeSimilarityTarget && activeSimilarityTarget.id === node.id;
+      const isBridgeNode = bridgeNodeIds.has(node.id);
+      const radius = getNodeRenderRadius(node, zoomK) * (isHovered ? 1.15 : (isBridgeNode ? 1.25 : 1));
+
+      const targetScreenPx = isBridgeNode ? 12 : (node.elevation > 0.75 ? 11.5 : 10);
+      const labelFontSize = Math.max(9, Math.round(targetScreenPx / zoomK));
+
+      const labelText = isBridgeNode ? `✦ @${node.creator}` : `@${node.creator}`;
+      ctx.font = `${node.elevation > 0.75 || isBridgeNode ? 'bold ' : ''}${labelFontSize}px monospace`;
+      const textMetrics = ctx.measureText(labelText);
+      const textW = textMetrics.width;
+      const textH = labelFontSize;
+      const chipPadX = 5 / zoomK;
+      const chipPadY = 2.5 / zoomK;
+      const boxW = textW + chipPadX * 2;
+      const boxH = textH + chipPadY * 2;
+
+      const effectiveR = zoomK < 0.65 ? Math.max(radius * 0.55, 6 / zoomK) : radius;
+      const gap = 4 / zoomK;
+
+      // 4 candidate positions around node: bottom, top, right, left
+      const positions = [
+        { name: 'bottom', x: node.x - boxW / 2, y: node.y + effectiveR + gap },
+        { name: 'top',    x: node.x - boxW / 2, y: node.y - effectiveR - gap - boxH },
+        { name: 'right',  x: node.x + effectiveR + gap, y: node.y - boxH / 2 },
+        { name: 'left',   x: node.x - effectiveR - gap - boxW, y: node.y - boxH / 2 }
+      ];
+
+      let chosenPos = null;
+      if (isHovered || isTarget) {
+        chosenPos = positions[0];
+      } else {
+        for (const pos of positions) {
+          const testBox = { x: pos.x, y: pos.y, w: boxW, h: boxH };
+          const collides = placedLabelBoxes.some(box => boxesIntersect(testBox, box));
+          if (!collides) {
+            chosenPos = pos;
+            break;
+          }
+        }
+      }
+
+      if (chosenPos) {
+        placedLabelBoxes.push({
+          x: chosenPos.x - (2 / zoomK),
+          y: chosenPos.y - (2 / zoomK),
+          w: boxW + (4 / zoomK),
+          h: boxH + (4 / zoomK)
+        });
+
+        ctx.save();
+        ctx.fillStyle = isHovered 
+          ? 'rgba(15, 23, 42, 0.96)' 
+          : (isBridgeNode ? 'rgba(26, 20, 10, 0.88)' : 'rgba(5, 7, 13, 0.82)');
+        ctx.strokeStyle = isHovered 
+          ? '#ffeaa7' 
+          : (isBridgeNode ? 'rgba(255, 234, 167, 0.6)' : (node.elevation > 0.75 ? 'rgba(255, 234, 167, 0.3)' : 'rgba(255, 255, 255, 0.12)'));
+        ctx.lineWidth = Math.max(0.8, 1 / zoomK);
+        
+        drawRoundedRect(ctx, chosenPos.x, chosenPos.y, boxW, boxH, 3 / zoomK);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = isHovered 
+          ? '#ffeaa7' 
+          : (isBridgeNode ? '#ffeaa7' : (node.elevation > 0.75 ? '#ffeaa7' : '#e6edf3'));
+        ctx.globalAlpha = isHovered ? 1.0 : (isBridgeNode ? 1.0 : (node.elevation > 0.75 ? 0.95 : 0.88));
+        ctx.fillText(labelText, chosenPos.x + chipPadX, chosenPos.y + chipPadY);
+
+        if (isHovered || (zoomK >= 1.45 && node.elevation > 0.75)) {
+          const subText = isBridgeNode ? '✦ THEMATIC BRIDGE' : (currentHeightMode === 'chrono' 
+            ? (node.dateFormatted || `▲${Math.round(node.elevation * 1000)}m`) 
+            : `▲${Math.round(node.elevation * 1000)}m`);
+          const subFontSize = Math.max(8, Math.round(8 / zoomK));
+          ctx.font = `${subFontSize}px monospace`;
+          ctx.fillStyle = isBridgeNode ? '#ffeaa7' : '#8b949e';
+          ctx.fillText(subText, chosenPos.x + chipPadX, chosenPos.y + boxH + (2 / zoomK));
+        }
+
+        ctx.restore();
+      }
+    });
+
+    ctx.restore();
+  }
+
+  function renderClusterPills() {
+    const container = document.getElementById('clusterPillsContainer');
+    if (!container) return;
+
+    const hasSelection = activeClusterFilters.size > 0;
+    if (hasSelection) {
+      container.classList.add('has-active');
+    } else {
+      container.classList.remove('has-active');
+    }
+
+    container.innerHTML = '';
+
+    // "All" Pill
+    const isAllActive = !hasSelection;
+    const allTag = document.createElement('div');
+    allTag.className = `cluster-tag ${isAllActive ? 'active' : ''}`;
+    allTag.style.background = isAllActive ? '#ffeaa7' : '#161e30';
+    allTag.style.color = isAllActive ? '#05070d' : '#ffeaa7';
+    allTag.style.borderColor = '#ffeaa7';
+    allTag.title = 'Show entire collection';
+    allTag.innerHTML = `All (${enrichedItems.length})`;
+    allTag.onclick = () => clearClusterFilters();
+    container.appendChild(allTag);
+
+    // Multi-Select Correlation Summary Chip (if 2+ themes active)
+    if (activeClusterFilters.size > 1) {
+      const summaryChip = document.createElement('div');
+      summaryChip.className = 'correlation-summary-chip';
+      let activeCount = 0;
+      enrichedItems.forEach(i => {
+        if (activeClusterFilters.has(i.cluster)) activeCount++;
+      });
+      summaryChip.innerHTML = `
+        <span>✦ Correlating ${activeClusterFilters.size} Themes (${activeCount} posts)</span>
+        <span class="clear-multi-btn" onclick="clearClusterFilters()">Reset ✕</span>
+      `;
+      container.appendChild(summaryChip);
+    }
+
+    // Sort clusters according to user-defined clusterPriorityOrder
+    const sortedClusters = [...clusters].sort((a, b) => {
+      const pA = clusterPriorityOrder.indexOf(a.id);
+      const pB = clusterPriorityOrder.indexOf(b.id);
+      return (pA === -1 ? 999 : pA) - (pB === -1 ? 999 : pB);
+    });
+
+    sortedClusters.forEach((c, index) => {
+      const isActive = activeClusterFilters.has(c.id);
+      const tag = document.createElement('div');
+      tag.className = `cluster-tag ${isActive ? 'active' : ''}`;
+      tag.draggable = true;
+      tag.dataset.clusterId = c.id;
+      tag.title = `Priority #${index + 1} — Drag to reorder priority. Click to toggle multi-theme view.`;
+
+      tag.style.background = isActive ? c.color : '#0e131f';
+      tag.style.borderColor = isActive ? '#ffeaa7' : c.color;
+      tag.style.color = isActive ? '#05070d' : '#fff';
+      tag.style.fontWeight = isActive ? '700' : '600';
+
+      const priorityBadge = `<span class="priority-badge" style="border-color:${c.color};">#${index + 1}</span>`;
+      const dragGrip = `<span class="drag-grip" title="Drag to set priority">⠿</span>`;
+
+      tag.innerHTML = `
+        ${dragGrip}
+        ${priorityBadge}
+        <span class="cluster-dot" style="background: ${isActive ? '#05070d' : c.color}"></span>
+        <span>${c.label} (${c.count})</span>
+      `;
+
+      // Click to toggle multi-selection
+      tag.onclick = (e) => {
+        toggleClusterFilter(c.id, e);
+      };
+
+      // HTML5 Drag and Drop events for Priority Reordering
+      tag.ondragstart = (e) => {
+        draggedClusterId = c.id;
+        tag.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', c.id);
+      };
+
+      tag.ondragend = () => {
+        tag.classList.remove('dragging');
+        document.querySelectorAll('.cluster-tag').forEach(el => el.classList.remove('drag-over'));
+      };
+
+      tag.ondragover = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        tag.classList.add('drag-over');
+      };
+
+      tag.ondragleave = () => {
+        tag.classList.remove('drag-over');
+      };
+
+      tag.ondrop = (e) => {
+        e.preventDefault();
+        tag.classList.remove('drag-over');
+        if (draggedClusterId !== null && draggedClusterId !== c.id) {
+          reorderClusterPriority(draggedClusterId, c.id);
+        }
+      };
+
+      container.appendChild(tag);
+    });
+
+    if (isTiledInspectorOpen) {
+      renderTiledInspectorCards();
+    }
+  }
+
+  function toggleClusterFilter(clusterId, event) {
+    if (activeClusterFilters.has(clusterId)) {
+      activeClusterFilters.delete(clusterId);
+    } else {
+      activeClusterFilters.add(clusterId);
+    }
+
+    activeSimilarityTarget = null;
+    const banner = document.getElementById('simBanner');
+    if (banner) banner.style.display = 'none';
+
+    updateNodeSelectionRadii();
+    renderClusterPills();
+    filterItems();
+    requestRender();
+  }
+
+  function clearClusterFilters() {
+    activeClusterFilters.clear();
+    activeSimilarityTarget = null;
+    const banner = document.getElementById('simBanner');
+    if (banner) banner.style.display = 'none';
+
+    updateNodeSelectionRadii();
+    renderClusterPills();
+    filterItems();
+    requestRender();
+  }
+
+  // Alias for backward compatibility
+  function filterByCluster(clusterId) {
+    if (clusterId === null) {
+      clearClusterFilters();
+    } else {
+      toggleClusterFilter(clusterId);
+    }
+  }
+
+  function updateNodeSelectionRadii() {
+    const hasSelection = activeClusterFilters.size > 0;
+    networkNodes.forEach(node => {
+      if (hasSelection) {
+        node.baseRadius = activeClusterFilters.has(node.cluster) ? 26 : 7;
+      } else {
+        node.baseRadius = 14 + node.elevation * 16;
+      }
+    });
+    if (simulation) simulation.alpha(0.18).restart();
+  }
+
+  function reorderClusterPriority(fromId, toId) {
+    const fromIdx = clusterPriorityOrder.indexOf(fromId);
+    const toIdx = clusterPriorityOrder.indexOf(toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    clusterPriorityOrder.splice(fromIdx, 1);
+    clusterPriorityOrder.splice(toIdx, 0, fromId);
+
+    // Recompute elevations so top priority clusters rise into peaks
+    applyHeightModeToNodes();
+    renderClusterPills();
+    filterItems(); // Re-sorts gallery by priority ranking
+    if (simulation) simulation.alpha(0.2).restart();
+    requestRender();
+  }
+
+  // === TILED NODE INSPECTOR CONTROLLER ===
+  let isTiledInspectorOpen = false;
+  let tiledInspectorFilter = 'all'; // 'all' or 'bridges'
+
+  function toggleTiledInspector(forceState) {
+    isTiledInspectorOpen = typeof forceState === 'boolean' ? forceState : !isTiledInspectorOpen;
+    const dock = document.getElementById('tiledInspectorDock');
+    const btn = document.getElementById('btnToggleTiledInspector');
+    if (dock) {
+      dock.classList.toggle('open', isTiledInspectorOpen);
+    }
+    if (btn) {
+      btn.classList.toggle('active', isTiledInspectorOpen);
+      btn.style.borderColor = isTiledInspectorOpen ? '#ffeaa7' : '';
+      btn.style.color = isTiledInspectorOpen ? '#ffeaa7' : '';
+      btn.style.background = isTiledInspectorOpen ? 'rgba(255, 234, 167, 0.15)' : '';
+    }
+    if (isTiledInspectorOpen) {
+      renderTiledInspectorCards();
+    }
+  }
+
+  function setTiledInspectorFilter(filter) {
+    tiledInspectorFilter = filter;
+    document.querySelectorAll('.tiled-filter-btn').forEach(b => b.classList.remove('active'));
+    const targetBtn = filter === 'bridges' ? document.getElementById('tiledFilterBridges') : document.getElementById('tiledFilterAll');
+    if (targetBtn) targetBtn.classList.add('active');
+    renderTiledInspectorCards();
+  }
+
+  function renderTiledInspectorCards() {
+    const grid = document.getElementById('tiledCardGrid');
+    const countPill = document.getElementById('tiledCountPill');
+    if (!grid) return;
+
+    // Determine active bridge nodes
+    const bridgeNodeIds = new Set();
+    if (activeClusterFilters.size > 1) {
+      networkLinks.forEach(link => {
+        const s = typeof link.source === 'object' ? link.source : networkNodes[link.source];
+        const t = typeof link.target === 'object' ? link.target : networkNodes[link.target];
+        if (s && t && activeClusterFilters.has(s.cluster) && activeClusterFilters.has(t.cluster) && s.cluster !== t.cluster) {
+          bridgeNodeIds.add(s.id);
+          bridgeNodeIds.add(t.id);
+        }
+      });
+    }
+
+    // Filter items based on active tabs & filter setting
+    let items = enrichedItems.filter(item => {
+      const inActiveCluster = activeClusterFilters.size === 0 || activeClusterFilters.has(item.cluster);
+      if (!inActiveCluster) return false;
+      if (tiledInspectorFilter === 'bridges') {
+        return bridgeNodeIds.has(item.id);
+      }
+      return true;
+    });
+
+    // Sort: bridges first, then by priority/elevation
+    items.sort((a, b) => {
+      const aBridge = bridgeNodeIds.has(a.id);
+      const bBridge = bridgeNodeIds.has(b.id);
+      if (aBridge !== bBridge) return aBridge ? -1 : 1;
+      return (b.elevation || 0) - (a.elevation || 0);
+    });
+
+    if (countPill) {
+      countPill.innerText = `${items.length} ${tiledInspectorFilter === 'bridges' ? 'BRIDGES' : 'POSTS'}`;
+    }
+
+    if (items.length === 0) {
+      grid.innerHTML = '<div style="color:var(--text-muted); font-size:12px; font-family:monospace; text-align:center; padding:30px 10px;">No matching items for current selection.</div>';
+      return;
+    }
+
+    grid.innerHTML = items.map(item => {
+      const isBridge = bridgeNodeIds.has(item.id);
+      const clusterObj = clusters.find(c => c.id === item.cluster);
+      const clusterLabel = clusterObj ? clusterObj.label : 'Topic';
+      const clusterColor = clusterObj ? clusterObj.color : '#e1306c';
+      const elevMeters = Math.round((item.elevation || 0.5) * 1000);
+
+      return `
+        <div class="tiled-card ${isBridge ? 'is-bridge' : ''}" onclick="focusNodeOnCanvas(${item.id})" ondblclick="event.stopPropagation(); openPostInBackground('${item.url}', '${item.creator}')" title="Click to focus · Double-click to open in background tab ↗">
+          <img src="${item.thumbnailUrl}" class="tiled-thumb" alt="thumbnail" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'52\\' height=\\'52\\' fill=\\'%23161e30\\'></svg>';">
+          <div class="tiled-info">
+            <div class="tiled-creator-row">
+              <span class="tiled-creator">@${item.creator}</span>
+              ${isBridge ? '<span class="tiled-badge">✦ BRIDGE</span>' : `<span class="tiled-badge" style="background:${clusterColor}22; color:${clusterColor}; border-color:${clusterColor}44;">${clusterLabel.substring(0, 10)}</span>`}
+            </div>
+            <div class="tiled-caption">${item.captionSummary || 'No caption available'}</div>
+            <div class="tiled-footer">
+              <span>${item.contentType === 'Reel' ? '🎬 Reel' : '📷 Post'} • ▲${elevMeters}m</span>
+              <span style="color:#ffeaa7; font-weight:bold;">Focus 🎯</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function focusNodeOnCanvas(nodeId) {
+    const node = networkNodes.find(n => n.id === nodeId);
+    if (!node || !canvas) return;
+
+    hoveredNode = node;
+    const targetScale = Math.max(1.5, currentTransform.k);
+    const wrap = document.getElementById('canvasWrap');
+    const width = wrap.clientWidth;
+    const height = wrap.clientHeight;
+
+    d3.select(canvas).transition().duration(600).call(
+      zoomBehavior.transform,
+      d3.zoomIdentity.translate(width / 2 - node.x * targetScale, height / 2 - node.y * targetScale).scale(targetScale)
+    );
+    requestRender();
+  }
+
+  // === FULLSCREEN CONTROLLER ===
+  let isNetworkFullscreen = false;
+
+  function toggleNetworkFullscreen() {
+    const section = document.querySelector('.network-section');
+    const btn = document.getElementById('btnToggleFullscreen');
+    if (!section) return;
+
+    if (!document.fullscreenElement && !section.classList.contains('is-fullscreen')) {
+      if (section.requestFullscreen) {
+        section.requestFullscreen().catch(() => {
+          enterCustomFullscreen(section, btn);
+        });
+      } else if (section.webkitRequestFullscreen) {
+        section.webkitRequestFullscreen();
+      } else {
+        enterCustomFullscreen(section, btn);
+      }
+    } else {
+      if (document.exitFullscreen && document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {
+          exitCustomFullscreen(section, btn);
+        });
+      } else if (document.webkitExitFullscreen && document.webkitFullscreenElement) {
+        document.webkitExitFullscreen();
+      } else {
+        exitCustomFullscreen(section, btn);
+      }
+    }
+  }
+
+  function enterCustomFullscreen(section, btn) {
+    section.classList.add('is-fullscreen');
+    isNetworkFullscreen = true;
+    if (btn) btn.innerHTML = '🗗 Exit Fullscreen';
+    handleFullscreenResize();
+  }
+
+  function exitCustomFullscreen(section, btn) {
+    section.classList.remove('is-fullscreen');
+    isNetworkFullscreen = false;
+    if (btn) btn.innerHTML = '⛶ Fullscreen';
+    handleFullscreenResize();
+  }
+
+  function handleFullscreenResize() {
+    setTimeout(() => {
+      if (window.resizeCanvas) window.resizeCanvas();
+      fitNetworkToView(150);
+    }, 100);
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    const section = document.querySelector('.network-section');
+    const btn = document.getElementById('btnToggleFullscreen');
+    const isNowFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    isNetworkFullscreen = isNowFs;
+    if (section) section.classList.toggle('is-fullscreen', isNowFs);
+    if (btn) btn.innerHTML = isNowFs ? '🗗 Exit Fullscreen' : '⛶ Fullscreen';
+    handleFullscreenResize();
+  });
+  document.addEventListener('webkitfullscreenchange', () => {
+    const section = document.querySelector('.network-section');
+    const btn = document.getElementById('btnToggleFullscreen');
+    const isNowFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    isNetworkFullscreen = isNowFs;
+    if (section) section.classList.toggle('is-fullscreen', isNowFs);
+    if (btn) btn.innerHTML = isNowFs ? '🗗 Exit Fullscreen' : '⛶ Fullscreen';
+    handleFullscreenResize();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isNetworkFullscreen) {
+      toggleNetworkFullscreen();
+    }
+  });
+
+  function initOrUpdateMap() {
+    const mapContainer = document.getElementById('geoMapContainer');
+    if (!mapContainer || mapContainer.style.display === 'none') return;
+
+    if (!leafletMap) {
+      leafletMap = L.map('geoMapContainer').setView([20.5937, 78.9629], 4);
+
+      // Dark theme map matching ASCII aesthetic (Zero API key required, reliable on file:// origins)
+      const esriDarkBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+        maxZoom: 16
+      });
+      const esriDarkRef = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 16
+      });
+      const darkThemeGroup = L.layerGroup([esriDarkBase, esriDarkRef]).addTo(leafletMap);
+
+      const osmStandard = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      });
+
+      const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri',
+        maxZoom: 19
+      });
+
+      L.control.layers({
+        "🌌 Dark Universe (Esri)": darkThemeGroup,
+        "🌍 OpenStreetMap": osmStandard,
+        "🗺️ Street Map (Esri)": esriStreet
+      }, null, { position: 'topright' }).addTo(leafletMap);
+    }
+
+    leafletMap.invalidateSize();
+    mapMarkers.forEach(m => leafletMap.removeLayer(m));
+    mapMarkers = [];
+
+    const bounds = [];
+    enrichedItems.forEach(item => {
+      if (item.geoData.coords) {
+        const marker = L.marker(item.geoData.coords).addTo(leafletMap);
+        marker.on('dblclick', (e) => {
+          if (L.DomEvent) L.DomEvent.stopPropagation(e);
+          openPostInBackground(item.url, item.creator);
+        });
+        marker.bindPopup(`
+          <div style="font-family: monospace; font-size: 13px;">
+            <strong>@${item.creator}</strong> (${item.geoData.locationName})<br>
+            <img src="${item.thumbnailUrl}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 6px; margin-top: 6px;"><br>
+            <div style="margin-top: 4px; font-size: 11px; color: #8b949e;">💡 Double-click marker to open</div>
+            <a href="${item.url}" target="_blank" style="color: #ffeaa7; font-weight: bold; text-decoration: none;">View Post ↗</a>
+          </div>
+        `);
+        mapMarkers.push(marker);
+        bounds.push(item.geoData.coords);
+      }
+    });
+
+    if (bounds.length > 0) {
+      leafletMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
+    }
+  }
+
+  function findThematicNeighbors(targetId) {
+    const target = enrichedItems[targetId];
+    if (!target) return;
+
+    activeSimilarityTarget = target;
+    activeClusterFilters.clear();
+
+    enrichedItems.forEach(item => {
+      item.currentSimilarity = getPairSimilarity(targetId, item.id);
+    });
+
+    const sorted = [...enrichedItems].sort((a,b) => b.currentSimilarity - a.currentSimilarity);
+
+    const banner = document.getElementById('simBanner');
+    const bannerText = document.getElementById('simBannerText');
+    const lensIcon = currentLens === 'music' ? '🎵' : (currentLens === 'geo' ? '📍' : '🧠');
+    if (bannerText) {
+      bannerText.innerHTML = `${lensIcon} Showing posts closest to <strong>@${target.creator}'s</strong> post: <em>"${target.captionSummary ? target.captionSummary.substring(0, 45) + '...' : target.shortcode}"</em>`;
+    }
+    if (banner) banner.style.display = 'flex';
+
+    const targetNode = networkNodes.find(n => n.id === targetId);
+    if (targetNode) {
+      d3.select(canvas).transition().duration(500).call(
+        zoomBehavior.transform,
+        d3.zoomIdentity.translate(canvas.width / 4 - targetNode.x * 1.5, canvas.height / 4 - targetNode.y * 1.5).scale(1.5)
+      );
+    }
+
+    renderClusterPills();
+    currentFilteredItems = sorted;
+    currentVisibleCount = galleryPageSize;
+    renderGallery();
+  }
+
+  function clearSimilarityFilter() {
+    activeSimilarityTarget = null;
+    const banner = document.getElementById('simBanner');
+    if (banner) banner.style.display = 'none';
+    enrichedItems.forEach(i => i.currentSimilarity = undefined);
+    filterItems();
+    requestRender();
+  }
+
+  function setFormatFilter(filter, btn) {
+    currentFormatFilter = filter;
+    specialFilter = null;
+    document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterItems();
+  }
+
+  function setSpecialFilter(filter, btn) {
+    specialFilter = filter;
+    document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterItems();
+  }
+
+  function filterItems() {
+    const searchInput = document.getElementById('searchInput');
+    const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    let filtered = enrichedItems.filter(item => {
+      const matchesFormat = currentFormatFilter === 'All' || item.contentType === currentFormatFilter;
+      const matchesCluster = activeClusterFilters.size === 0 || activeClusterFilters.has(item.cluster);
+      const matchesSpecial = !specialFilter || 
+        (specialFilter === 'Music' && item.musicData.isMusic) ||
+        (specialFilter === 'Geo' && item.geoData.isGeo);
+
+      const matchesQuery = !query || 
+        (item.captionSummary && item.captionSummary.toLowerCase().includes(query)) ||
+        (item.creator && item.creator.toLowerCase().includes(query)) ||
+        (item.musicData.parsedTrack && item.musicData.parsedTrack.toLowerCase().includes(query)) ||
+        (item.geoData.locationName && item.geoData.locationName.toLowerCase().includes(query)) ||
+        (item.shortcode && item.shortcode.toLowerCase().includes(query));
+
+      return matchesFormat && matchesCluster && matchesSpecial && matchesQuery;
+    });
+
+    if (activeSimilarityTarget) {
+      filtered.sort((a, b) => (b.currentSimilarity || 0) - (a.currentSimilarity || 0));
+    } else if (currentLens === 'chrono') {
+      // Chronological sort adhering to direction toggle
+      filtered.sort((a, b) => {
+        const tA = a.timestamp || 0;
+        const tB = b.timestamp || 0;
+        return (chronoDirection === 'newest') ? (tB - tA) : (tA - tB);
+      });
+    } else if (clusterPriorityOrder && clusterPriorityOrder.length > 0) {
+      filtered.sort((a, b) => {
+        const pA = clusterPriorityOrder.indexOf(a.cluster);
+        const pB = clusterPriorityOrder.indexOf(b.cluster);
+        const rankA = pA === -1 ? 999 : pA;
+        const rankB = pB === -1 ? 999 : pB;
+        if (rankA !== rankB) return rankA - rankB;
+        return (b.centrality || 0) - (a.centrality || 0);
+      });
+    }
+
+    currentFilteredItems = filtered;
+    currentVisibleCount = galleryPageSize;
+    renderGallery();
+  }
+
+  function loadMoreCards() {
+    currentVisibleCount += galleryPageSize;
+    renderGallery();
+  }
+
+  function renderGallery() {
+    const grid = document.getElementById('galleryGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const items = currentFilteredItems;
+    if (items.length === 0) {
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #8b949e; padding: 40px; font-family: monospace;">No posts match your filters.</div>';
+      return;
+    }
+
+    const visibleItems = items.slice(0, currentVisibleCount);
+    const highlightedId = activeSimilarityTarget ? activeSimilarityTarget.id : null;
+
+    visibleItems.forEach(item => {
+      const card = document.createElement('div');
+      card.className = `card ${highlightedId === item.id ? 'highlighted' : ''}`;
+      card.title = "Double-click to open on Instagram in new tab";
+      card.ondblclick = () => openPostInBackground(item.url, item.creator);
+
+      const clusterObj = clusters.find(c => c.id === item.cluster);
+      const clusterColor = clusterObj ? clusterObj.color : '#e1306c';
+      const clusterLabel = clusterObj ? clusterObj.label : 'Topic';
+      const typeIcon = item.contentType === 'Reel' ? '🎬 Reel' : (item.contentType === 'Carousel' ? '📑 Carousel' : '🖼️ Post');
+
+      let metaTagsHtml = '<div class="meta-tag-pills">';
+      if (item.musicData.isMusic) {
+        metaTagsHtml += `<span class="tag-pill tag-music">🎵 ${item.musicData.parsedTrack ? 'Track' : 'Music'}</span>`;
+      }
+      if (item.geoData.isGeo) {
+        metaTagsHtml += `<span class="tag-pill tag-geo">📍 ${item.geoData.locationName || 'Place'}</span>`;
+      }
+      metaTagsHtml += '</div>';
+
+      const simPill = (item.currentSimilarity !== undefined && highlightedId !== item.id) 
+        ? `<div class="similarity-pill">${Math.round(item.currentSimilarity * 100)}% match</div>`
+        : (highlightedId === item.id ? `<div class="similarity-pill" style="background:#ffeaa7; color:#05070d;">Target</div>` : '');
+
+      card.innerHTML = `
+        <div class="thumb-wrap">
+          <img src="${item.thumbnailUrl}" alt="${item.captionSummary || 'Post'}" loading="lazy" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'300\' fill=\'%230e131f\'><rect width=\'100%25\' height=\'100%25\'/><text x=\'50%25\' y=\'50%25\' fill=\'%238b949e\' font-family=\'monospace\' font-size=\'14\' text-anchor=\'middle\' dy=\'.3em\'>[No Preview]</text></svg>';">
+          <div class="type-badge">${typeIcon}</div>
+          <div class="cluster-badge" style="background: ${clusterColor}cc;">${clusterLabel}</div>
+          ${metaTagsHtml}
+          ${simPill}
+        </div>
+        <div class="card-body">
+          <div>
+            <div class="creator-header">
+              <a href="https://instagram.com/${item.creator}" target="_blank" rel="noopener noreferrer" class="creator-name">@${item.creator}</a>
+              <button class="find-similar-btn" onclick="findThematicNeighbors(${item.id})">🔍 Proximity</button>
+            </div>
+            ${item.musicData.parsedTrack ? `<div style="font-size:12px; color:#ffeaa7; font-weight:600; margin-bottom:6px; font-family:monospace;">🎵 ${item.musicData.parsedTrack}</div>` : ''}
+            <div class="caption-text">${item.captionSummary || '<span style="color:#6e7681; font-style: italic;">No caption summary</span>'}</div>
+          </div>
+          <div class="card-footer">
+            <span>ID: ${item.shortcode} <span style="color:#58a6ff; margin-left:6px;">⏳ ${item.dateFormatted || ''}</span></span>
+            <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="view-btn">View on Instagram ↗</a>
+          </div>
+        </div>
+      `;
+
+      grid.appendChild(card);
+    });
+
+    if (items.length > currentVisibleCount) {
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'load-more-btn';
+      moreBtn.innerText = `Load More Posts (${items.length - currentVisibleCount} remaining)...`;
+      moreBtn.onclick = loadMoreCards;
+      grid.appendChild(moreBtn);
+    }
+  }
+
+  function exportToCSV() {
+    const headers = [
+      "Shortcode", "Content Type", "Creator", "Niche", "Date Saved", "Timestamp",
+      "Elevation", "Height Tier", "Is Music", "Track", "Is Geo", "Location", "Instagram URL", "Caption Summary"
+    ];
+    const rows = enrichedItems.map(i => {
+      const cLabel = clusters[i.cluster] ? clusters[i.cluster].label : '';
+      const node = networkNodes.find(n => n.id === i.id);
+      const elev = node ? Math.round(node.elevation * 1000) : 0;
+      const tier = node ? node.tier : '';
+      return [
+        `"${i.shortcode}"`,
+        `"${i.contentType}"`,
+        `"${i.creator}"`,
+        `"${cLabel}"`,
+        `"${i.dateFormatted || ''}"`,
+        `"${i.timestamp || ''}"`,
+        `"${elev}m"`,
+        `"${tier}"`,
+        `"${i.musicData.isMusic ? 'Yes' : 'No'}"`,
+        `"${(i.musicData.parsedTrack || '').replace(/"/g, '""')}"`,
+        `"${i.geoData.isGeo ? 'Yes' : 'No'}"`,
+        `"${(i.geoData.locationName || '').replace(/"/g, '""')}"`,
+        `"${i.url}"`,
+        `"${(i.captionSummary || '').replace(/"/g, '""')}"`
+      ];
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `instagram_proximity_enriched_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // DIGSITE ARCHIVE EXPORT (.digsite.json)
+  function exportDigsiteArchive() {
+    if (enrichedItems.length === 0) {
+      alert("Please load or ingest a collection first.");
+      return;
+    }
+    const archiveData = {
+      format: "digsite_ig_archive",
+      version: "2.5",
+      exportedAt: new Date().toISOString(),
+      itemCount: enrichedItems.length,
+      currentScenario,
+      clusters: clusters.map(c => ({ id: c.id, label: c.label, color: c.color, count: c.count })),
+      items: enrichedItems.map(i => ({
+        shortcode: i.shortcode,
+        url: i.url,
+        contentType: i.contentType,
+        creator: i.creator,
+        captionSummary: i.captionSummary,
+        thumbnailUrl: i.thumbnailUrl,
+        harvestedAt: i.harvestedAt || i.savedAt || i.timestamp,
+        dateFormatted: i.dateFormatted,
+        cluster: i.cluster
+      }))
+    };
+
+    const jsonStr = JSON.stringify(archiveData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `my_collection_${Date.now()}.digsite.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`💾 Exported Digsite Archive (${enrichedItems.length} items)`);
+  }
+
+  // MODAL CONTROLLERS: SCRAPER & COMPARATOR
+  function openScraperModal() {
+    const modal = document.getElementById('scraperModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      const codeBox = document.getElementById('scraperCodeBox');
+      if (codeBox && (!codeBox.innerText || codeBox.innerText === '...')) {
+        codeBox.innerText = SCRAPER_SCRIPT_SRC;
+      }
+    }
+  }
+
+  function closeScraperModal() {
+    const modal = document.getElementById('scraperModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function copyScraperScript() {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(SCRAPER_SCRIPT_SRC).then(() => {
+        showToast("📋 Excavator script copied to clipboard!");
+      }).catch(() => {
+        fallbackCopyText(SCRAPER_SCRIPT_SRC);
+      });
+    } else {
+      fallbackCopyText(SCRAPER_SCRIPT_SRC);
+    }
+  }
+
+  function fallbackCopyText(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast("📋 Excavator script copied to clipboard!");
+  }
+
+  function openCompareModal() {
+    const modal = document.getElementById('compareModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      safeSetText('primaryCompareCount', `${enrichedItems.length} items`);
+    }
+  }
+
+  function closeCompareModal() {
+    const modal = document.getElementById('compareModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function handleSecondaryFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        let secData = parseJsonSafely(e.target.result);
+        if (secData && !Array.isArray(secData) && Array.isArray(secData.items)) {
+          secData = secData.items;
+        }
+        if (!Array.isArray(secData) || secData.length === 0) {
+          alert("Secondary file does not contain valid items.");
+          return;
+        }
+        secondaryDigsite = secData;
+        runDigsiteComparison(enrichedItems, secondaryDigsite);
+      } catch (err) {
+        alert("Error parsing secondary digsite file: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function runDigsiteComparison(primaryList, secondaryList) {
+    if (!primaryList || !secondaryList || primaryList.length === 0 || secondaryList.length === 0) return;
+
+    const extractVocabMap = (items) => {
+      const vocab = new Map();
+      items.forEach(i => {
+        const text = (i.captionSummary || '').toLowerCase();
+        const tokens = text.replace(/[^\p{L}\p{N}]+/gu, ' ').split(/\s+/).filter(w => w.length > 3 && !STOP_WORDS.has(w));
+        tokens.forEach(t => {
+          vocab.set(t, (vocab.get(t) || 0) + 1);
+        });
+      });
+      return vocab;
+    };
+
+    const vocabA = extractVocabMap(primaryList);
+    const vocabB = extractVocabMap(secondaryList);
+
+    const intersection = [];
+    const exclusiveA = [];
+    const exclusiveB = [];
+
+    vocabA.forEach((cnt, word) => {
+      if (vocabB.has(word)) {
+        intersection.push({ word, score: cnt * vocabB.get(word) });
+      } else {
+        exclusiveA.push({ word, count: cnt });
+      }
+    });
+
+    vocabB.forEach((cnt, word) => {
+      if (!vocabA.has(word)) {
+        exclusiveB.push({ word, count: cnt });
+      }
+    });
+
+    intersection.sort((a, b) => b.score - a.score);
+    exclusiveA.sort((a, b) => b.count - a.count);
+    exclusiveB.sort((a, b) => b.count - a.count);
+
+    const unionKeys = new Set([...vocabA.keys(), ...vocabB.keys()]);
+    const jaccardRatio = unionKeys.size > 0 ? (intersection.length / unionKeys.size) : 0;
+    const resonancePercent = Math.min(100, Math.round(jaccardRatio * 180));
+
+    safeSetText('compareResonanceScore', `${resonancePercent}% (${intersection.length} shared concepts)`);
+    const fill = document.getElementById('compareResonanceFill');
+    if (fill) fill.style.width = `${resonancePercent}%`;
+
+    const getStats = (items) => {
+      const creators = {};
+      let reels = 0;
+      let minDate = Infinity;
+      let maxDate = -Infinity;
+      items.forEach(i => {
+        const c = i.creator || 'unknown';
+        creators[c] = (creators[c] || 0) + 1;
+        if (i.contentType === 'Reel') reels++;
+        const t = i.timestamp || (i.harvestedAt ? new Date(i.harvestedAt).getTime() : 0);
+        if (t > 0) {
+          if (t < minDate) minDate = t;
+          if (t > maxDate) maxDate = t;
+        }
+      });
+      const topCreators = Object.entries(creators).sort((a,b) => b[1] - a[1]).slice(0, 3).map(e => `@${e[0]} (${e[1]})`);
+      const dateSpan = (minDate !== Infinity && maxDate !== -Infinity)
+        ? `${new Date(minDate).toLocaleDateString(undefined, { year:'numeric', month:'short' })} ➔ ${new Date(maxDate).toLocaleDateString(undefined, { year:'numeric', month:'short' })}`
+        : 'Undated';
+      return {
+        total: items.length,
+        reelsPercent: Math.round((reels / (items.length || 1)) * 100),
+        topCreators: topCreators.join(', ') || 'None',
+        dateSpan
+      };
+    };
+
+    const statsA = getStats(primaryList);
+    const statsB = getStats(secondaryList);
+
+    const primDetails = document.getElementById('comparePrimaryDetails');
+    if (primDetails) {
+      primDetails.innerHTML = `
+        <div>Total Saves: <strong>${statsA.total}</strong></div>
+        <div>Format Split: <strong>${statsA.reelsPercent}% Reels</strong>, ${100 - statsA.reelsPercent}% Posts</div>
+        <div>Active Timeline: <strong>${statsA.dateSpan}</strong></div>
+        <div>Vocabulary Depth: ${vocabA.size} unique terms</div>
+        <div>Top Creators: ${statsA.topCreators}</div>
+        <div style="margin-top:6px; color:#58a6ff;">Exclusive Rabbit Holes: <em>${exclusiveA.slice(0, 5).map(e => e.word).join(', ') || 'None'}</em></div>
+      `;
+    }
+
+    const secDetails = document.getElementById('compareSecondaryDetails');
+    if (secDetails) {
+      secDetails.innerHTML = `
+        <div>Total Saves: <strong>${statsB.total}</strong></div>
+        <div>Format Split: <strong>${statsB.reelsPercent}% Reels</strong>, ${100 - statsB.reelsPercent}% Posts</div>
+        <div>Active Timeline: <strong>${statsB.dateSpan}</strong></div>
+        <div>Vocabulary Depth: ${vocabB.size} unique terms</div>
+        <div>Top Creators: ${statsB.topCreators}</div>
+        <div style="margin-top:6px; color:#f0883e;">Exclusive Rabbit Holes: <em>${exclusiveB.slice(0, 5).map(e => e.word).join(', ') || 'None'}</em></div>
+      `;
+    }
+
+    const sharedEl = document.getElementById('compareSharedKeywords');
+    if (sharedEl) {
+      if (intersection.length > 0) {
+        sharedEl.innerText = intersection.slice(0, 35).map(e => e.word).join(' · ');
+      } else {
+        sharedEl.innerText = 'No direct keyword overlap found.';
+      }
+    }
+
+    const resBox = document.getElementById('comparisonResults');
+    if (resBox) resBox.style.display = 'block';
+  }
+
+  // EMBEDDED CONSOLE SCRAPER SOURCE CODE
+  const SCRAPER_SCRIPT_SRC = `/**
+ * ::: DIGSITE INSTAGRAM CONSOLE EXCAVATOR v2.5 :::
+ * 1. Open Instagram on desktop browser (https://www.instagram.com/your_username/saved/)
+ * 2. Press F12 -> Console -> Paste this script -> Press Enter.
+ * 3. The script auto-scrolls, harvests posts/reels/carousels, and downloads my_instagram_digsite.json
+ */
+(function runDigsiteExcavator() {
+  if (!window.location.hostname.includes('instagram.com')) {
+    alert('::: DIGSITE ERROR ::: Please run this script while on https://www.instagram.com/your_username/saved/');
+    return;
+  }
+  if (window.__digsiteExcavatorActive) {
+    alert('::: DIGSITE NOTICE ::: Excavator is already active!');
+    return;
+  }
+  window.__digsiteExcavatorActive = true;
+  const harvestedItems = new Map();
+  let isScrolling = true;
+  let lastScrollHeight = 0;
+  let consecutiveStallCount = 0;
+  const MAX_STALLS = 6;
+
+  const hud = document.createElement('div');
+  hud.id = 'digsite-hud';
+  hud.style.cssText = 'position:fixed; top:20px; right:20px; width:340px; background:rgba(5,7,13,0.94); border:1px solid #ffeaa7; border-radius:12px; padding:16px; color:#e2e8f0; font-family:monospace; font-size:12px; box-shadow:0 8px 32px rgba(0,0,0,0.85); z-index:99999999; backdrop-filter:blur(10px); line-height:1.5;';
+  hud.innerHTML = '<div style="font-weight:bold; color:#ffeaa7; border-bottom:1px dashed #334155; padding-bottom:6px; margin-bottom:10px; display:flex; justify-content:space-between;"><span>[◈ DIGSITE EXCAVATOR]</span><span style="color:#58a6ff;">v2.5_ACTIVE</span></div><div style="margin-bottom:8px;">STATUS: <span id="digsite-status" style="color:#56d364; font-weight:bold;">EXCAVATING...</span></div><div style="margin-bottom:8px; font-size:13px;">HARVESTED: <span id="digsite-count" style="color:#ffeaa7; font-weight:bold; font-size:15px;">0</span> items</div><div style="margin-bottom:12px; color:#94a3b8; font-size:11px;">Auto-scrolling collection... Keep this tab in view.</div><div style="display:flex; gap:8px;"><button id="digsite-stop-btn" style="flex:1; background:#238636; border:1px solid #2ea043; color:#fff; padding:8px; border-radius:6px; font-family:monospace; font-weight:bold; cursor:pointer;">⏹ STOP & DOWNLOAD</button><button id="digsite-cancel-btn" style="background:transparent; border:1px solid #64748b; color:#94a3b8; padding:8px; border-radius:6px; font-family:monospace; cursor:pointer;">✕</button></div>';
+  document.body.appendChild(hud);
+
+  const statusEl = document.getElementById('digsite-status');
+  const countEl = document.getElementById('digsite-count');
+  const stopBtn = document.getElementById('digsite-stop-btn');
+  const cancelBtn = document.getElementById('digsite-cancel-btn');
+
+  function harvestVisiblePosts() {
+    const postAnchors = document.querySelectorAll('a[href*="/p/"], a[href*="/reel/"]');
+    postAnchors.forEach(a => {
+      const href = a.getAttribute('href') || '';
+      const match = href.match(/\\/(p|reel)\\/([A-Za-z0-9_-]+)/);
+      if (!match) return;
+      const type = match[1] === 'reel' ? 'Reel' : 'Post';
+      const shortcode = match[2];
+      if (harvestedItems.has(shortcode)) return;
+      const img = a.querySelector('img');
+      const captionText = img ? (img.getAttribute('alt') || '') : '';
+      const thumbnailUrl = img ? (img.getAttribute('src') || '') : '';
+      const isCarousel = !!a.querySelector('svg[aria-label*="Carousel"], svg[aria-label*="carousel"], span[aria-label*="Carousel"]');
+      let creator = 'unknown';
+      const container = a.closest('article') || a.parentElement;
+      if (container) {
+        const cLink = container.querySelector('a[href^="/"][role="link"]:not([href*="/p/"]):not([href*="/reel/"])');
+        if (cLink) {
+          const raw = (cLink.getAttribute('href') || '').replace(/\\//g, '');
+          if (raw && !['explore', 'reels', 'direct', 'stories'].includes(raw)) creator = raw;
+        }
+      }
+      if (captionText && creator === 'unknown') {
+        const cMatch = captionText.match(/Photo by ([^on]+) on/i) || captionText.match(/by ([^\\.]+)\\./i);
+        if (cMatch) creator = cMatch[1].trim().replace(/^@/, '');
+      }
+      harvestedItems.set(shortcode, {
+        shortcode,
+        url: 'https://www.instagram.com' + match[0] + '/',
+        contentType: isCarousel ? 'Carousel' : type,
+        creator,
+        captionSummary: captionText,
+        thumbnailUrl: thumbnailUrl.length < 500 ? thumbnailUrl : '',
+        harvestedAt: new Date().toISOString()
+      });
+    });
+    if (countEl) countEl.innerText = harvestedItems.size;
+  }
+
+  const scrollTimer = setInterval(() => {
+    if (!isScrolling) return;
+    harvestVisiblePosts();
+    window.scrollBy({ top: 900, behavior: 'smooth' });
+    const currentHeight = document.documentElement.scrollHeight;
+    if (currentHeight === lastScrollHeight) {
+      consecutiveStallCount++;
+      if (statusEl) statusEl.innerText = 'BUFFERING (' + consecutiveStallCount + '/' + MAX_STALLS + ')...';
+      if (consecutiveStallCount >= MAX_STALLS) stopAndDownload();
+    } else {
+      consecutiveStallCount = 0;
+      lastScrollHeight = currentHeight;
+      if (statusEl) statusEl.innerText = 'EXCAVATING...';
+    }
+  }, 850);
+
+  function stopAndDownload() {
+    isScrolling = false;
+    clearInterval(scrollTimer);
+    harvestVisiblePosts();
+    const data = Array.from(harvestedItems.values());
+    if (data.length === 0) { alert('No posts found. Please make sure you are on saved posts page.'); cleanup(); return; }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'my_instagram_digsite_' + Date.now() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (statusEl) { statusEl.style.color = '#58a6ff'; statusEl.innerText = 'DOWNLOADED ' + data.length + ' ITEMS!'; }
+    setTimeout(cleanup, 3500);
+  }
+
+  function cleanup() {
+    clearInterval(scrollTimer);
+    window.__digsiteExcavatorActive = false;
+    if (hud && hud.parentElement) hud.parentElement.removeChild(hud);
+  }
+
+  stopBtn.onclick = stopAndDownload;
+  cancelBtn.onclick = cleanup;
+})();`;
+</script>
+
+<!-- Retro ASCII Excavation Progress Overlay -->
+<div id="progressOverlay" style="display:none; position:fixed; inset:0; background:rgba(5,7,13,0.95); z-index:9999999; flex-direction:column; align-items:center; justify-content:center; backdrop-filter:blur(8px); font-family:monospace;">
+  <pre style="color:#ffeaa7; font-size:12px; margin-bottom:16px; text-align:center;">
+   ░██████╗░██╗░██████╗░░██████╗██╗████████╗███████╗
+   ██╔════╝░██║██╔════╝░██╔════╝██║╚══██╔══╝██╔════╝
+   ██║░░██╗░██║██║░░██╗░╚█████╗░██║░░░██║░░░█████╗░░
+   ██║░░╚██╗██║██║░░╚██╗░╚═══██╗██║░░░██║░░░██╔══╝░░
+   ╚██████╔╝██║╚██████╔╝██████╔╝██║░░░██║░░░███████╗
+   ░╚═════╝░╚═╝░╚═════╝░╚═════╝░╚═╝░░░╚═╝░░░╚══════╝
+  </pre>
+  <div style="font-size:15px; font-weight:bold; color:#79c0ff; margin-bottom:10px;" id="progressTitle">
+    ::: EXCAVATING COLLECTION STRATA :::
+  </div>
+  <div style="color:#ffeaa7; font-size:13px; margin-bottom:12px;" id="progressBarText">
+    [░░░░░░░░░░░░░░░░░░░░] 0%
+  </div>
+  <div style="color:#8b949e; font-size:11px;" id="progressSubtext">
+    Parsing Instagram JSON into sparse TF-IDF inverted index...
+  </div>
+</div>
+
+<!-- Modal: Ingest from Instagram Console -->
+<div class="modal-backdrop" id="scraperModal" style="display:none;" onclick="if(event.target===this) closeScraperModal()">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div class="modal-title">⛏️ 1-Click Instagram Saved Scraper</div>
+      <button class="modal-close-btn" onclick="closeScraperModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px; color:#c9d1d9; line-height:1.6; margin-bottom:12px;">
+        To harvest your Instagram saved posts, reels, and carousels into a clean JSON file ready for DIGSITE:
+      </p>
+      <ol style="font-size:12px; color:#8b949e; line-height:1.6; margin-left:18px; margin-bottom:14px;">
+        <li>Log into <a href="https://www.instagram.com" target="_blank" style="color:#58a6ff;">Instagram.com</a> on your desktop browser.</li>
+        <li>Open your Saved page: <code>https://www.instagram.com/your_username/saved/</code></li>
+        <li>Open Developer Tools (press <kbd>F12</kbd> or <kbd>Ctrl+Shift+I</kbd> / <kbd>Cmd+Option+I</kbd>) and click the <strong>Console</strong> tab.</li>
+        <li>Paste the script below and hit <kbd>Enter</kbd>. A floating excavator HUD will auto-scroll and download <code>my_instagram_digsite.json</code>.</li>
+      </ol>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-size:11px; font-family:monospace; color:#ffeaa7;">SCRAPER SCRIPT (v2.5):</span>
+        <div style="display:flex; gap:8px;">
+          <button class="export-btn" style="padding:4px 10px; font-size:11px;" onclick="copyScraperScript()">📋 Copy Script to Clipboard</button>
+          <a href="instagram_scraper_console.js" download="instagram_scraper_console.js" class="export-btn" style="padding:4px 10px; font-size:11px; text-decoration:none; background:#21262d;">💾 Download .js</a>
+        </div>
+      </div>
+      <div class="code-preview-box" id="scraperCodeBox">...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Cross-Digsite Comparator -->
+<div class="modal-backdrop" id="compareModal" style="display:none;" onclick="if(event.target===this) closeCompareModal()">
+  <div class="modal-dialog" style="max-width:850px;">
+    <div class="modal-header">
+      <div class="modal-title">⇄ Cross-Digsite Comparator (Compare Two IG Collections)</div>
+      <button class="modal-close-btn" onclick="closeCompareModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px; color:#c9d1d9; line-height:1.5;">
+        Compare your collection with a friend or colleague's digsite archive. Analyze shared vocabulary resonance, thematic overlaps, exclusive rabbit holes, and chronological emergence.
+      </p>
+
+      <div id="secondaryDropZone" style="border:2px dashed #30363d; border-radius:10px; padding:20px; text-align:center; margin-top:12px; cursor:pointer; background:#05070d;" onclick="document.getElementById('secondaryFileInput').click()">
+        <div style="font-size:24px; margin-bottom:6px;">📂</div>
+        <div style="font-weight:bold; color:#79c0ff; font-family:monospace;">Drop Secondary .json or .digsite.json to compare</div>
+        <div style="font-size:11px; color:#8b949e; margin-top:4px;">Primary Digsite: <span id="primaryCompareCount" style="color:#ffeaa7;">0 items</span> loaded</div>
+        <input type="file" id="secondaryFileInput" style="display:none;" accept=".json,.digsite.json" onchange="handleSecondaryFile(this.files[0])">
+      </div>
+
+      <div id="comparisonResults" style="display:none; margin-top:16px;">
+        <!-- Resonance Meter -->
+        <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; font-family:monospace; font-size:12px;">
+            <span style="font-weight:bold; color:#ffeaa7;">VOCABULARY RESONANCE (JACCARD OVERLAP):</span>
+            <span id="compareResonanceScore" style="font-weight:bold; color:#56d364; font-size:15px;">0%</span>
+          </div>
+          <div class="resonance-meter">
+            <div class="resonance-fill" id="compareResonanceFill" style="width:0%;"></div>
+          </div>
+        </div>
+
+        <div class="compare-grid">
+          <div class="compare-card">
+            <div style="font-weight:bold; color:#79c0ff; font-family:monospace; margin-bottom:8px;">🏛️ PRIMARY DIGSITE (YOU)</div>
+            <div id="comparePrimaryDetails" style="font-size:12px; color:#c9d1d9; line-height:1.6; font-family:monospace;"></div>
+          </div>
+          <div class="compare-card">
+            <div style="font-weight:bold; color:#f0883e; font-family:monospace; margin-bottom:8px;">🏺 SECONDARY DIGSITE (GUEST)</div>
+            <div id="compareSecondaryDetails" style="font-size:12px; color:#c9d1d9; line-height:1.6; font-family:monospace;"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; background:#161b22; border:1px solid #30363d; border-radius:8px; padding:12px;">
+          <div style="font-weight:bold; color:#ffeaa7; font-family:monospace; font-size:12px; margin-bottom:6px;">✦ SHARED THEMATIC INTERSECTIONS & RESONANT KEYWORDS:</div>
+          <div id="compareSharedKeywords" style="font-size:12px; color:#79c0ff; font-family:monospace; line-height:1.6;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
